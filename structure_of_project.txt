@@ -1,0 +1,39 @@
+popuPyTools/
+├── LICENSE
+├── README.md
+├── pyproject.toml
+├── setup.cfg
+├── proj_folder
+│   └── data/
+│   └── output/
+│   └── config.yaml
+├── src/
+│   └── popupy/
+│       ├── __init__.py
+│       ├── core/
+│       │   ├── __init__.py
+│       │   ├── feature_extraction.py
+│       │   ├── model.py
+│       │   └── dasymetric.py
+│       ├── utils/
+│       │   ├── __init__.py
+│       │   ├── config_utils.py
+│       │   ├── raster.py
+│       │   ├── vector.py
+│       │   └── visualization.py
+│       ├── config/
+│       │   ├── __init__.py
+│       │   └── settings.py
+│       └── cli/
+│           ├── __init__.py
+│           └── main.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_feature_extraction.py
+│   ├── test_model.py
+│   └── test_dasymetric.py
+└── docs/
+    ├── conf.py
+    ├── index.rst
+    └── api.rst
+

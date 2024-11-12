@@ -1,0 +1,103 @@
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "popupy"
+version = "0.1.0"
+description = "A Python package for population prediction and dasymetric mapping."
+readme = "README.md"
+authors = [
+    { name = "Borys Nosatiuk", email = "b.nosatiuk@soton.ac.uk" },
+    { name = "Rhorom Priyatikanto", email = "rhorom.priyatikanto@soton.ac.uk" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["population", "mapping", "GIS", "machine learning", "dasymetric", "random forest"]
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "geopandas>=0.14.0",
+    "rasterio>=1.3.0",
+    "scikit-learn>=1.3.0",
+    "matplotlib>=3.7.0",
+    "tqdm>=4.65.0",
+    "click>=8.1.0",
+    "pyyaml>=6.0.0",
+    "joblib>=1.3.0",
+]
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.1",
+    "black>=23.0",
+    "isort>=5.12",
+    "flake8>=6.0",
+    "mypy>=1.5",
+    "ruff>=0.1.0",
+]
+
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=1.3",
+    "sphinx-autodoc-typehints>=1.24",
+    "myst-parser>=2.0.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/wpgp/pypopRF"
+Documentation = "https://popupy.readthedocs.io/"
+Repository = "https://github.com/wpgp/pypopRF.git"
+Issues = "https://github.com/wpgp/pypopRF/issues"
+
+[project.scripts]
+popupy = "popupy.cli.main:cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["popupy"]
+
+[tool.setuptools.package-data]
+popupy = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+known_first_party = ["popupy"]
+
+[tool.ruff]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+]
+ignore = []
+line-length = 88
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_optional = true
