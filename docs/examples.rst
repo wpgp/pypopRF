@@ -22,7 +22,7 @@ Initialize and run a basic project:
    pypoprf run -c basic_project/config.yaml
 
 2. Custom Covariates
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 Initialize project with specific covariates:
 
@@ -34,7 +34,7 @@ Initialize project with specific covariates:
      --covariates slope
 
 3. Large Dataset
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
 
 For large datasets, adjust processing parameters in config.yaml:
 
@@ -50,7 +50,7 @@ Common Workflows
 --------------
 
 1. Population Density Analysis
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example config.yaml for population density analysis:
 
@@ -70,7 +70,7 @@ Example config.yaml for population density analysis:
    census_id_column: "zone_id"
 
 2. Urban Population Mapping
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Example workflow for urban areas:
 
