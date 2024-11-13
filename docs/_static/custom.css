@@ -1,0 +1,74 @@
+/* docs/_static/custom.css */
+
+/* Improve readability */
+.wy-nav-content {
+    max-width: 1000px;  /* Wider content area */
+}
+
+/* Better code blocks */
+div[class^="highlight"] {
+    border-radius: 4px;
+    background: #f8f9fb;
+    margin: 1em 0;
+}
+
+/* Better tables */
+table.docutils {
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin: 1em 0;
+}
+
+table.docutils td, table.docutils th {
+    padding: 8px 12px !important;
+}
+
+/* Better section headers */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 2em;
+    margin-bottom: 1em;
+    color: #2c3e50;
+}
+
+/* Add section dividers */
+.section {
+    border-bottom: 1px solid #eaecef;
+    padding-bottom: 2em;
+    margin-bottom: 2em;
+}
+
+/* Better inline code */
+code.literal {
+    color: #e83e8c;
+    background: #f8f9fb;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Better note/warning boxes */
+.admonition {
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Better sidebar */
+.wy-side-nav-search {
+    background-color: #2980B9;
+}
+
+.wy-side-nav-search input[type="text"] {
+    border-radius: 4px;
+}
+
+/* Better navigation */
+.wy-menu-vertical li.current {
+    background: #f8f9fb;
+}
+
+/* Better footer */
+footer {
+    margin-top: 4em;
+    padding-top: 2em;
+    border-top: 1px solid #eaecef;
+}
