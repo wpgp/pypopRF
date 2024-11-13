@@ -1,4 +1,4 @@
-echo "# Python specific
+# Python specific
 __pycache__/
 *.py[cod]
 *$py.class
@@ -49,5 +49,13 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-.hypothesis/" > .gitignore
+.hypothesis/
+
+# Sphinx documentation
+docs/_build/
+docs/_autosummary/
+docs/_static/
+docs/_templates/
+*.doctree
+*.pickle
 /example_proj/
