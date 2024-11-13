@@ -1,5 +1,9 @@
 # pypopRF
 
+[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://wpgp.github.io/pypopRF/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+
 pypopRF is a Python package for population prediction and dasymetric mapping using machine learning techniques. It provides a comprehensive toolkit for processing geospatial data, training models, and generating high-resolution population distribution maps.
 
 ## Features
@@ -11,15 +15,40 @@ pypopRF is a Python package for population prediction and dasymetric mapping usi
 - Visualization tools for analysis and validation
 - Command-line interface for easy project management
 
-## Installation and Setup
-
-### Quick Installation
+## Quick Installation
 
 ```bash
 pip install pypoprf
 ```
 
-### Development Installation
+## Documentation
+
+Full documentation is available at [https://wpgp.github.io/pypopRF/](https://wpgp.github.io/pypopRF/)
+
+The documentation includes:
+- Detailed installation instructions
+- Usage guide and examples
+- Input data requirements
+- Configuration options
+- Troubleshooting guide
+
+## Basic Usage
+
+### Initialize Project
+
+```bash
+# Create a new project
+pypoprf init my_project
+```
+
+### Run Analysis
+
+```bash
+# Run with configuration file
+pypoprf run -c my_project/config.yaml
+```
+
+## Development Setup
 
 1. Clone the repository:
 ```bash
@@ -29,251 +58,20 @@ cd pypopRF
 
 2. Create and activate virtual environment:
 ```bash
-# Create virtual environment
 python -m venv venv
-
-# Activate on Linux/Mac
-source venv/bin/activate
-
-# Activate on Windows (cmd.exe)
-venv\Scripts\activate.bat
-
-# Activate on Windows (PowerShell)
-venv\Scripts\Activate.ps1
+source venv/bin/activate  # Linux/Mac
+# or
+venv\Scripts\activate.bat  # Windows
 ```
 
 3. Install in development mode:
 ```bash
-# Install with development dependencies
-pip install -e ".[dev]"
-
-# Or install with additional extras
 pip install -e ".[dev,docs]"
 ```
 
-### System Dependencies
-
-#### Linux (Ubuntu/Debian)
-```bash
-sudo apt-get update
-sudo apt-get install -y \
-    gdal-bin \
-    libgdal-dev \
-    gcc
-```
-
-#### MacOS
-```bash
-brew install gdal
-```
-
-#### Windows
-- Install OSGeo4W from https://trac.osgeo.org/osgeo4w/
-- Add GDAL paths to system environment variables
-
-## Quick Start
-
-### Initialize a New Project
-
-```bash
-# Create a new project with default covariates
-pypoprf init my_project
-
-# Create a project with custom covariates
-pypoprf init my_project --covariates population --covariates elevation --covariates slope
-```
-
-Initialization flags:
-- `project_dir`: (Required) Directory path for the new project
-- `--data-dir`: Name of directory for input data files (default: "data")
-- `--prefix`: Prefix added to input filenames (default: "test_")
-- `--covariates`, `-cov`: Names of covariate datasets. Can be specified multiple times.
-
-### Run Population Modeling
-
-```bash
-# Run with path to working directory containing config.yaml
-pypoprf run -c /path/to/working/dir/config.yaml
-
-# Using relative path
-pypoprf run -c ./my_project/config.yaml
-
-# Run with additional options
-pypoprf run -c /path/to/working/dir/config.yaml -v --no-viz
-```
-
-Running flags:
-- `-c`, `--config`: (Required) Full path to configuration YAML file. The working directory will be set to the directory containing this file
-- `-v`, `--verbose`: Enable detailed output logging
-- `--no-viz`: Skip visualization generation
-
-Note: The configuration file (config.yaml) must be located in the working directory along with the required data and output folders. The working directory structure should look like this:
-
-```
-working_directory/           # Directory containing config.yaml
-├── config.yaml             # Configuration file
-├── data/                   # Input data directory
-│   ├── mastergrid.tif
-│   ├── covariate1.tif
-│   ├── covariate2.tif
-│   └── census.csv
-└── output/                 # Results directory
-```
-
-## Configuration
-
-Example `config.yaml`:
-```yaml
-# Working directory configuration
-work_dir: "."
-data_dir: "data"
-
-# Input data paths
-covariates:
-  cnt: "buildingCount.tif"
-  srf: "buildingSurface.tif"
-  vol: "buildingVolume.tif"
-mastergrid: "mastergrid.tif"
-census_data: "census.csv"
-
-# Census data columns
-census_pop_column: "pop"
-census_id_column: "id"
-
-# Processing parameters
-block_size: [512, 512]
-max_workers: 8
-show_progress: true
-```
-
-## Input Data Requirements
-
-### Covariates
-- Format: GeoTIFF
-- Must share the same:
-  - Coordinate Reference System (CRS)
-  - Resolution
-  - Extent
-  - Dimensions
-
-### Census Data
-- Format: CSV
-- Required columns:
-  - Population count
-  - Zone ID (matching mastergrid zones)
-
-### Mastergrid
-- Format: GeoTIFF
-- Contains zone IDs matching census data
-- Aligned with covariates
-
-## Output Files
-
-- `features.csv`: Extracted features for model training
-- `model.pkl.gz`: Trained Random Forest model
-- `scaler.pkl.gz`: Fitted feature scaler
-- `feature_selection.png`: Feature importance visualization
-- `prediction.tif`: Raw population probability surface
-- `normalized_census.tif`: Normalized census populations
-- `dasymetric.tif`: Final high-resolution population distribution
-- `visualization.png`: Multi-panel visualization of results
-
-## Python API Usage
-
-```python
-from pypoprf.config import Settings
-from pypoprf.core import FeatureExtractor, Model, DasymetricMapper
-
-# Initialize settings
-settings = Settings.from_file('config.yaml')
-
-# Extract features
-extractor = FeatureExtractor(settings)
-features = extractor.extract()
-
-# Train model and predict
-model = Model(settings)
-model.train(features)
-prediction_path = model.predict()
-
-# Perform dasymetric mapping
-mapper = DasymetricMapper(settings)
-result_path = mapper.map(prediction_path)
-```
-
-## Docker Support
-
-### Build Image
-```bash
-docker build -t pypoprf .
-```
-
-### Run Container
-```bash
-docker run -it --rm \
-    -v $(pwd)/data:/app/data \
-    -v $(pwd)/output:/app/output \
-    pypoprf run -c config.yaml
-```
-
-## Development
-
-### Running Tests
-```bash
-# Run tests with coverage
-pytest tests/ --cov=pypoprf
-```
-
-### Code Quality
-```bash
-# Format code
-black src/
-isort src/
-
-# Run linters
-ruff check src/
-mypy src/
-```
-
-### Building Documentation
-```bash
-# Install documentation dependencies
-pip install -e ".[docs]"
-
-# Build documentation
-cd docs
-make html
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. GDAL Import Errors:
-   - Ensure GDAL is installed system-wide
-   - Check Python GDAL bindings match system version
-
-2. Memory Issues:
-   - Adjust block_size in config.yaml
-   - Reduce max_workers for parallel processing
-
-3. CRS Mismatches:
-   - Ensure all input rasters share same CRS
-   - Use gdalwarp to reproject if needed
-
-### Getting Help
-
-- Documentation: https://pypopRF.readthedocs.io/
-- Issues: https://github.com/wpgp/pypopRF/issues
-- Discussions: https://github.com/wpgp/pypopRF/discussions
-
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
