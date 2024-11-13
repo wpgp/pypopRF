@@ -92,37 +92,32 @@ Initialization flags:
 ### Run Population Modeling
 
 ```bash
-# Run with default settings
-pypoprf run -c config.yaml
+# Run with path to working directory containing config.yaml
+pypoprf run -c /path/to/working/dir/config.yaml
 
-# Run with verbose output and skip visualization
-pypoprf run -c config.yaml -v --no-viz
+# Using relative path
+pypoprf run -c ./my_project/config.yaml
+
+# Run with additional options
+pypoprf run -c /path/to/working/dir/config.yaml -v --no-viz
 ```
 
 Running flags:
-- `-c`, `--config`: (Required) Path to configuration YAML file
+- `-c`, `--config`: (Required) Full path to configuration YAML file. The working directory will be set to the directory containing this file
 - `-v`, `--verbose`: Enable detailed output logging
 - `--no-viz`: Skip visualization generation
 
-## Project Structure
+Note: The configuration file (config.yaml) must be located in the working directory along with the required data and output folders. The working directory structure should look like this:
 
-After initialization:
 ```
-my_project/
-├── config.yaml          # Configuration file
-├── data/               # Input data directory
+working_directory/           # Directory containing config.yaml
+├── config.yaml             # Configuration file
+├── data/                   # Input data directory
 │   ├── mastergrid.tif
 │   ├── covariate1.tif
 │   ├── covariate2.tif
 │   └── census.csv
-└── output/             # Results directory
-    ├── features.csv
-    ├── model.pkl.gz
-    ├── scaler.pkl.gz
-    ├── prediction.tif
-    ├── normalized_census.tif
-    ├── dasymetric.tif
-    └── visualization.png
+└── output/                 # Results directory
 ```
 
 ## Configuration
