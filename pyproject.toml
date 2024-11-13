@@ -56,7 +56,7 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/wpgp/pypopRF"
-Documentation = "https://pypoprf.readthedocs.io/"
+Documentation = "https://wpgp.github.io/pypopRF"
 Repository = "https://github.com/wpgp/pypopRF.git"
 Issues = "https://github.com/wpgp/pypopRF/issues"
 
