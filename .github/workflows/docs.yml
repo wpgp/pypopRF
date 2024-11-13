@@ -34,6 +34,7 @@ jobs:
       run: |
         cd docs
         sphinx-build -b html . _build/html
+        touch _build/html/.nojekyll  # Добавляем .nojekyll файл
 
     - name: Deploy to GitHub Pages
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -41,3 +42,6 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs/_build/html
+        force_orphan: true  # Полностью пересоздаст ветку gh-pages
+        enable_jekyll: false  # Отключаем обработку Jekyll
+        cname: ~  # Очищаем CNAME если он есть
