@@ -1,4 +1,4 @@
-# src/popupy/utils/raster.py
+# src/pypoprf/utils/raster.py
 import numpy as np
 import pandas as pd
 import rasterio
@@ -9,13 +9,13 @@ from rasterio.windows import Window
 from tqdm import tqdm
 import concurrent.futures
 
-from popupy.utils.matplotlib_utils import with_non_interactive_matplotlib
+from ..utils.matplotlib_utils import with_non_interactive_matplotlib
 
 
 def progress_bar(iterable: Any,
-                show: bool,
-                total: int,
-                desc: str = "Processing") -> Any:
+                 show: bool,
+                 total: int,
+                 desc: str = "Processing") -> Any:
     """
     Create a progress bar for iteration.
 

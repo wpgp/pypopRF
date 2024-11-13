@@ -15,7 +15,7 @@ class Visualizer:
         Initialize visualizer.
 
         Args:
-            settings: PopuPy settings instance containing configuration
+            settings: pypopRF settings instance containing configuration
         """
         self.settings = settings
         self.output_dir = Path(settings.work_dir) / 'output'

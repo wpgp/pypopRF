@@ -1,4 +1,4 @@
-# src/popupy/config/settings.py
+# src/pypoprf/config/settings.py
 import warnings
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -10,7 +10,7 @@ import yaml
 
 class Settings:
     """
-    Configuration settings manager for PopuPy.
+    Configuration settings manager for pypopRF.
 
     This class handles all configuration settings for population modeling,
     including file paths, processing parameters, and validation of inputs.
@@ -243,7 +243,7 @@ class Settings:
 
         covariate_str = '\n    '.join(f"- {key}: {value}" for key, value in self.covariate.items())
         return (
-            f"PopuPy Settings:\n"
+            f"pypopRF Settings:\n"
             f"  Work Directory: {self.work_dir}\n"
             f"  Output Directory: {self.output_dir}\n"
             f"  Mastergrid: {self.mastergrid}\n"

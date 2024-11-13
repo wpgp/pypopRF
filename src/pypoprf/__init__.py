@@ -1,6 +1,6 @@
-# src/popupy/__init__.py
+# src/pypoprf/__init__.py
 """
-PopuPy: Tools for geospatial modeling of population distribution.
+pypopRF: Tools for geospatial modeling of population distribution.
 
 This package provides tools for high-resolution population mapping using
 machine learning and dasymetric techniques.
@@ -12,7 +12,7 @@ Classes:
     DasymetricMapper: High-resolution population redistribution
 
 Example:
-    >>> from popupy import Settings, FeatureExtractor, Model, DasymetricMapper
+    >>> from pypoprf import Settings, FeatureExtractor, Model, DasymetricMapper
     >>> settings = Settings.from_file('config.yaml')
     >>> model = Model(settings)
 """
@@ -20,20 +20,20 @@ Example:
 from importlib.metadata import version
 
 # Core components
-from popupy.core.feature_extraction import FeatureExtractor
-from popupy.core.model import Model
-from popupy.core.dasymetric import DasymetricMapper
-from popupy.config.settings import Settings
+from pypoprf.core.feature_extraction import FeatureExtractor
+from pypoprf.core.model import Model
+from pypoprf.core.dasymetric import DasymetricMapper
+from pypoprf.config.settings import Settings
 
 try:
-    __version__ = version("popupy")
+    __version__ = version("pypoprf")
 except ImportError:
     __version__ = "unknown"
 
 __author__ = "WorldPop SDI"
 __email__ = "b.nosatiuk@soton.ac.uk, rhorom.priyatikanto@soton.ac.uk"
 __license__ = "MIT"
-__docs__ = "https://popupy.readthedocs.io/"
+__docs__ = "https://pypoprf.readthedocs.io/"
 
 # Define public API
 __all__ = [
@@ -44,7 +44,7 @@ __all__ = [
     "Settings",
 ]
 
-# src/popupy/core/__init__.py
+# src/pypoprf/core/__init__.py
 """
 Core functionality for population modeling.
 
@@ -54,13 +54,13 @@ This module contains the main components for population modeling:
 - Dasymetric mapping for population redistribution
 """
 
-from popupy.core.feature_extraction import FeatureExtractor
-from popupy.core.model import Model
-from popupy.core.dasymetric import DasymetricMapper
+from pypoprf.core.feature_extraction import FeatureExtractor
+from pypoprf.core.model import Model
+from pypoprf.core.dasymetric import DasymetricMapper
 
 __all__ = ["FeatureExtractor", "Model", "DasymetricMapper"]
 
-# src/popupy/utils/__init__.py
+# src/pypoprf/utils/__init__.py
 """
 Utility functions for raster and vector processing.
 
@@ -70,17 +70,17 @@ This module provides helper functions for:
 - Visualization tools
 """
 
-from popupy.utils.raster import (
+from pypoprf.utils.raster import (
     progress_bar,
     raster_compare,
     raster_stat,
     raster_stat_stack,
 
 )
-from popupy.utils.visualization import (
+from pypoprf.utils.visualization import (
     Visualizer,
 )
-from popupy.utils.matplotlib_utils import (
+from pypoprf.utils.matplotlib_utils import (
     with_non_interactive_matplotlib,
     non_interactive_backend
 )

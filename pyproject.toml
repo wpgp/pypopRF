@@ -4,7 +4,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "popupy"
+name = "pypoprf"
 version = "0.1.0"
 description = "A Python package for population prediction and dasymetric mapping."
 readme = "README.md"
@@ -56,19 +56,19 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/wpgp/pypopRF"
-Documentation = "https://popupy.readthedocs.io/"
+Documentation = "https://pypoprf.readthedocs.io/"
 Repository = "https://github.com/wpgp/pypopRF.git"
 Issues = "https://github.com/wpgp/pypopRF/issues"
 
 [project.scripts]
-popupy = "popupy.cli.main:cli"
+pypoprf = "pypoprf.cli.main:cli"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["popupy"]
+packages = ["pypoprf"]
 
 [tool.setuptools.package-data]
-popupy = ["py.typed"]
+pypoprf = ["py.typed"]
 
 [tool.black]
 line-length = 88
@@ -78,7 +78,7 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 multi_line_output = 3
-known_first_party = ["popupy"]
+known_first_party = ["pypoprf"]
 
 [tool.ruff]
 select = [

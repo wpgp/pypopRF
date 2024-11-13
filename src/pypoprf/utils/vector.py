@@ -1,4 +1,4 @@
-# src/popupy/utils/vector.py
+# src/pypoprf/utils/vector.py
 import time
 
 import numpy as np
@@ -13,7 +13,6 @@ from typing import Dict, Optional, Union, Tuple
 
 from tqdm import tqdm
 
-from ..utils.raster import progress_bar
 
 
 def vector2raster(gdf: gpd.GeoDataFrame,

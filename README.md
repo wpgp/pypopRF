@@ -1,6 +1,6 @@
-# PopuPy
+# pypopRF
 
-PopuPy is a Python package for population prediction and dasymetric mapping using machine learning techniques. It provides a comprehensive toolkit for processing geospatial data, training models, and generating high-resolution population distribution maps.
+pypopRF is a Python package for population prediction and dasymetric mapping using machine learning techniques. It provides a comprehensive toolkit for processing geospatial data, training models, and generating high-resolution population distribution maps.
 
 ## Features
 
@@ -16,7 +16,7 @@ PopuPy is a Python package for population prediction and dasymetric mapping usin
 ### Quick Installation
 
 ```bash
-pip install popupy
+pip install pypoprf
 ```
 
 ### Development Installation
@@ -24,7 +24,7 @@ pip install popupy
 1. Clone the repository:
 ```bash
 git clone https://github.com/wpgp/pypopRF.git
-cd PopuPyTool
+cd pypopRF
 ```
 
 2. Create and activate virtual environment:
@@ -77,10 +77,10 @@ brew install gdal
 
 ```bash
 # Create a new project with default covariates
-popupy init my_project
+pypoprf init my_project
 
 # Create a project with custom covariates
-popupy init my_project --covariates population --covariates elevation --covariates slope
+pypoprf init my_project --covariates population --covariates elevation --covariates slope
 ```
 
 Initialization flags:
@@ -93,10 +93,10 @@ Initialization flags:
 
 ```bash
 # Run with default settings
-popupy run -c config.yaml
+pypoprf run -c config.yaml
 
 # Run with verbose output and skip visualization
-popupy run -c config.yaml -v --no-viz
+pypoprf run -c config.yaml -v --no-viz
 ```
 
 Running flags:
@@ -186,8 +186,8 @@ show_progress: true
 ## Python API Usage
 
 ```python
-from popupy.config import Settings
-from popupy.core import FeatureExtractor, Model, DasymetricMapper
+from pypoprf.config import Settings
+from pypoprf.core import FeatureExtractor, Model, DasymetricMapper
 
 # Initialize settings
 settings = Settings.from_file('config.yaml')
@@ -210,7 +210,7 @@ result_path = mapper.map(prediction_path)
 
 ### Build Image
 ```bash
-docker build -t popupy .
+docker build -t pypoprf .
 ```
 
 ### Run Container
@@ -218,7 +218,7 @@ docker build -t popupy .
 docker run -it --rm \
     -v $(pwd)/data:/app/data \
     -v $(pwd)/output:/app/output \
-    popupy run -c config.yaml
+    pypoprf run -c config.yaml
 ```
 
 ## Development
@@ -226,7 +226,7 @@ docker run -it --rm \
 ### Running Tests
 ```bash
 # Run tests with coverage
-pytest tests/ --cov=popupy
+pytest tests/ --cov=pypoprf
 ```
 
 ### Code Quality
@@ -268,7 +268,7 @@ make html
 
 ### Getting Help
 
-- Documentation: https://popupy.readthedocs.io/
+- Documentation: https://pypopRF.readthedocs.io/
 - Issues: https://github.com/wpgp/pypopRF/issues
 - Discussions: https://github.com/wpgp/pypopRF/discussions
 
@@ -286,12 +286,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Citation
 
-If you use PopuPy in your research, please cite:
+If you use pypopRF in your research, please cite:
 
 ```bibtex
-@software{popupy2024,
+@software{pypoprf2024,
   author = {WorldPop SDI},
-  title = {PopuPy: Population Prediction and Dasymetric Mapping Tool},
+  title = {pypopRF: Population Prediction and Dasymetric Mapping Tool},
   year = {2024},
   publisher = {GitHub},
   url = {https://github.com/wpgp/pypopRF}

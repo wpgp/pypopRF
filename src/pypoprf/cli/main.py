@@ -1,26 +1,26 @@
-# src/popupy/cli/main.py
+# src/pypoprf/cli/main.py
 import click
-from popupy import __version__
+from pypoprf import __version__
 from pathlib import Path
 
-from popupy.utils.config_utils import create_config_template
+from pypoprf.utils.config_utils import create_config_template
 from ..config.settings import Settings
 from ..core.feature_extraction import FeatureExtractor
 from ..core.model import Model
 from ..core.dasymetric import DasymetricMapper
 
 
-@click.group(name='popupy')
-@click.version_option(version=__version__, prog_name='PopuPy')
+@click.group(name='pypoprf')
+@click.version_option(version=__version__, prog_name='pypoprf')
 @click.pass_context
 def cli(ctx):
     """
-    PopuPy for geospatial modeling of population distribution.
+    pypopRF for geospatial modeling of population distribution.
 
     A Python toolkit for high-resolution population mapping using machine learning
     and dasymetric techniques.
 
-    For more information, visit: https://popupy.readthedocs.io/
+    For more information, visit: https://pypoprf.readthedocs.io/
     """
     ctx.ensure_object(dict)
 
@@ -116,7 +116,7 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
 @click.option('--data-dir', default='data', help='Name of directory containing data files')
 @click.option('--prefix', default='test_', help='Prefix for data files')
 def init(project_dir: str, data_dir: str, prefix: str):
-    """Initialize a new PopuPy project with proper structure."""
+    """Initialize a new pypopRF project with proper structure."""
     try:
         # Create project directory
         project_path = Path(project_dir).resolve()
@@ -137,7 +137,7 @@ def init(project_dir: str, data_dir: str, prefix: str):
             prefix=prefix
         )
 
-        click.echo(f"Initialized new PopuPy project in {project_dir}")
+        click.echo(f"Initialized new pypopRF project in {project_dir}")
         click.echo("\nCreated directory structure:")
         click.echo(f"{project_dir}/")
         click.echo("|-- config.yaml")
@@ -155,7 +155,6 @@ def init(project_dir: str, data_dir: str, prefix: str):
     except Exception as e:
         click.echo(f"Error during initialization: {str(e)}", err=True)
         raise click.Abort()
-
 
 
 if __name__ == '__main__':

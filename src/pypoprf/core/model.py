@@ -1,4 +1,4 @@
-# src/popupy/core/model.py
+# src/pypoprf/core/model.py
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -40,7 +40,7 @@ class Model:
         Initialize model handler.
 
         Args:
-            settings: PopuPy settings instance
+            settings: pypopRF settings instance
         """
         self.settings = settings
         self.model = None
@@ -110,10 +110,10 @@ class Model:
                 self._save_model()
 
     def _select_features(self,
-                        X: np.ndarray,
-                        y: np.ndarray,
-                        limit: float = 0.05,
-                        plot: bool = True) -> Tuple[pd.DataFrame, np.ndarray]:
+                         X: np.ndarray,
+                         y: np.ndarray,
+                         limit: float = 0.05,
+                         plot: bool = True) -> Tuple[pd.DataFrame, np.ndarray]:
         """
         Select features based on importance using permutation importance.
         """
@@ -145,7 +145,6 @@ class Model:
         if plot:
             self._plot_feature_importance(importances, limit)
 
-
         print(f'Selected {len(selected)} features out of {len(names)} features')
         print(selected.tolist())
 
@@ -153,8 +152,8 @@ class Model:
 
     @with_non_interactive_matplotlib
     def _plot_feature_importance(self,
-                               importance_df: pd.DataFrame,
-                               limit: float) -> None:
+                                 importance_df: pd.DataFrame,
+                                 limit: float) -> None:
         """
         Create box plot visualization of feature importances.
 
@@ -183,9 +182,9 @@ class Model:
         plt.close()
 
     def _calculate_cv_scores(self,
-                           X_scaled: np.ndarray,
-                           y: np.ndarray,
-                           cv: int = 10) -> None:
+                             X_scaled: np.ndarray,
+                             y: np.ndarray,
+                             cv: int = 10) -> None:
         """Calculate and print cross-validation scores."""
 
         print('\nComputing CV scores...')
@@ -206,7 +205,6 @@ class Model:
             scoring['n' + k] = (-100, 'n' + scoring[k][1])
             scores['test_n' + k] = scores['test_' + k] / self.target_mean
             scores['train_n' + k] = scores['train_' + k] / self.target_mean
-
 
         print('\nTraining scores:')
         for k in scoring:

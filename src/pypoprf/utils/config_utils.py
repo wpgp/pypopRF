@@ -1,4 +1,4 @@
-# src/popupy/utils/config_utils.py
+# src/pypoprf/utils/config_utils.py
 from pathlib import Path
 from typing import Dict, Any
 import yaml
@@ -48,7 +48,7 @@ def create_config_template(output_path: Path,
         'show_progress': True
     }
 
-    header_comment = """# PopuPy configuration file
+    header_comment = """# pypopRF configuration file
 #
 # Configuration options:
 #   work_dir: Root directory for project

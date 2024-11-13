@@ -1,4 +1,4 @@
-# src/popupy/utils/matplotlib_utils.py
+# src/pypoprf/utils/matplotlib_utils.py
 import functools
 from contextlib import contextmanager
 import matplotlib

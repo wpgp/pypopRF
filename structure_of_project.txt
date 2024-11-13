@@ -1,4 +1,4 @@
-popuPyTools/
+pypopRF/
 ├── LICENSE
 ├── README.md
 ├── pyproject.toml
@@ -8,7 +8,7 @@ popuPyTools/
 │   └── output/
 │   └── config.yaml
 ├── src/
-│   └── popupy/
+│   └── pypoprf/
 │       ├── __init__.py
 │       ├── core/
 │       │   ├── __init__.py

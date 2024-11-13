@@ -1,4 +1,4 @@
-# src/popupy/core/feature_extraction.py
+# src/pypoprf/core/feature_extraction.py
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple, Any
 import numpy as np
@@ -96,7 +96,7 @@ class FeatureExtractor:
             if ext in self.SUPPORTED_VECTOR_FORMATS:
                 if not isinstance(df, gpd.GeoDataFrame):
                     raise ValueError("DataFrame must be GeoDataFrame for spatial formats")
-                df.to_file(path, index=False)
+                df.to_file(str(path), index=False)
             elif ext in self.SUPPORTED_TABLE_FORMATS:
                 df.to_csv(path, index=False)
             else:
@@ -104,7 +104,6 @@ class FeatureExtractor:
 
         except Exception as e:
             raise ValueError(f"Failed to save file: {str(e)}")
-
 
     def validate_census(self,
                         census: pd.DataFrame,

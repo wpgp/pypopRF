@@ -21,5 +21,5 @@ RUN pip install --no-cache-dir -e ".[dev]"
 RUN mkdir -p data output
 
 # Set default command
-ENTRYPOINT ["popupy"]
+ENTRYPOINT ["pypoprf"]
 CMD ["--help"]

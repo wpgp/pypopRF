@@ -17,7 +17,7 @@ def joblib_resources() -> Generator[str, None, None]:
         str: Path to temporary directory
     """
 
-    temp_folder = tempfile.mkdtemp(prefix='popupy_joblib_')
+    temp_folder = tempfile.mkdtemp(prefix='pypoprf_joblib_')
     old_temp = os.environ.get('JOBLIB_TEMP_FOLDER')
 
     try:

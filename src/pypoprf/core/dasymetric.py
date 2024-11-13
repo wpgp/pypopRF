@@ -1,4 +1,4 @@
-# src/popupy/core/dasymetric.py
+# src/pypoprf/core/dasymetric.py
 import time
 import numpy as np
 import pandas as pd
@@ -37,7 +37,6 @@ class DasymetricMapper:
         self._write_lock = threading.Lock()
         self._norm_read_lock = threading.Lock()
         self._pred_read_lock = threading.Lock()
-
 
     @staticmethod
     def _validate_census(census: pd.DataFrame,
@@ -92,7 +91,6 @@ class DasymetricMapper:
             census = census[[id_column, pop_column]]
 
         return census, id_column, pop_column
-
 
     def _validate_inputs(self, prediction_path: str, mastergrid_path: str) -> None:
         """
@@ -164,7 +162,6 @@ class DasymetricMapper:
             print(f"- Unique zones: {len(unique_zones)}")
             print(f"- Zone ID range: [{unique_zones.min()}, {unique_zones.max()}]")
             print(f"- NoData value: {mst_nodata}")
-
 
     def _load_census(self,
                      census_path: str,
