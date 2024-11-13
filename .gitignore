@@ -54,8 +54,10 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 docs/_autosummary/
-docs/_static/
-docs/_templates/
 *.doctree
 *.pickle
 /example_proj/
+
+# Keep documentation directories
+!docs/_static/
+!docs/_templates/
