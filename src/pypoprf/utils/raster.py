@@ -176,6 +176,96 @@ def aggregate_table(df: pd.DataFrame, prefix: str = '', min_count: int = 1) -> p
     return out
 
 
+def get_windows(src, 
+                blocksize: Optional[Tuple[int, int]] = (512, 512)
+    ):
+    """
+    Get block/window tiles for reading/writing raster
+
+    Args:
+        src: rasterio.open
+        blocksize: tuple defining block/window size
+
+    Returns:
+        List of windows
+
+    """
+
+    x0 = np.arange(0, src.width, blocksize[0])
+    y0 = np.arange(0, src.height, blocksize[1])
+    grid = np.meshgrid(x0, y0)
+    windows = [rasterio.windows.Window(a, b, blocksize[0], blocksize[1])
+                for (a, b) in zip(grid[0].flatten(), grid[1].flatten())]
+
+    return windows
+
+
+def remask_layer(mastergrid: str,
+                 mask: str,
+                 mask_value: int | float,
+                 outfile: Optional[str] = 'remasked_layer.tif',
+                 by_block: bool = True,
+                 max_workers: int = 4,
+                 blocksize: Optional[Tuple[int, int]] = None,
+                 show_progress: bool = True
+    ):
+
+    """
+    Implement additional masking to the mastergrid, e.g., use water mask.
+
+    Args:
+        mastergrid: Path to mastergrid file
+        mask: Path to mask file
+        mask_value: value to be masked out
+        outfile: Path to the output file (remasked mastergrid)
+
+    Returns:
+        nothing
+
+    Raises:
+        FileNotFoundError: If input files don't exist
+        RuntimeError: If processing fails
+    """
+    try:
+        with rasterio.open(mastergrid, 'r') as mst, rasterio.open(mask, 'r') as msk:
+            nodata = mst.nodata
+            dst = rasterio.open(outfile, 'w', **mst.profile)
+            reading_lock = threading.Lock()
+            writing_lock = threading.Lock()
+
+            def process(window):
+                with reading_lock:
+                    m = mst.read(window=window)
+                    n = msk.read(window=window)
+
+                m[n == mask_value] = nodata
+                with writing_lock:
+                    dst.write(m, 1, window=window)
+
+            if by_block:
+                if blocksize is None:
+                    windows = [window for ij, window in tgt.block_windows()]
+                else:
+                    windows = get_windows(mst, blocksize)
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    progress_bar(executor.map(process, windows),
+                                 show_progress,
+                                 len(windows),
+                                 desc="Remasking mastergrid")
+
+            else:
+                m = mst.read(1)
+                n = msk.read(1)
+                m[n == mask_value] = nodata
+                dst.write(m, 1)
+
+            dst.close()
+        
+    except Exception as e:
+        raise RuntimeError(f"Error processing rasters: {str(e)}")
+
+
 @with_non_interactive_matplotlib
 def raster_stat(infile: str,
                 mastergrid: str,
@@ -188,7 +278,7 @@ def raster_stat(infile: str,
 
     Args:
         infile: Input raster path
-        mastergrid: Master grid raster path
+        mastergrid: Mastergrid raster path
         by_block: Whether to process by blocks
         max_workers: Number of worker processes
         blocksize: Size of processing blocks
@@ -221,11 +311,7 @@ def raster_stat(infile: str,
                 if blocksize is None:
                     windows = [window for ij, window in tgt.block_windows()]
                 else:
-                    x0 = np.arange(0, mst.width, blocksize[0])
-                    y0 = np.arange(0, mst.height, blocksize[1])
-                    grid = np.meshgrid(x0, y0)
-                    windows = [rasterio.windows.Window(a, b, blocksize[0], blocksize[1])
-                               for (a, b) in zip(grid[0].flatten(), grid[1].flatten())]
+                    windows = get_windows(mst, blocksize)
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     df = list(progress_bar(executor.map(process, windows),
@@ -301,11 +387,7 @@ def raster_stat_stack(infiles: Dict[str, str],
                         # Use first raster to determine blocks
                         windows = [window for ij, window in targets[0].block_windows()]
                     else:
-                        x0 = np.arange(0, mst.width, blocksize[0])
-                        y0 = np.arange(0, mst.height, blocksize[1])
-                        grid = np.meshgrid(x0, y0)
-                        windows = [rasterio.windows.Window(a, b, blocksize[0], blocksize[1])
-                                   for (a, b) in zip(grid[0].flatten(), grid[1].flatten())]
+                        windows = get_windows(mst, blocksize)
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                         df = list(progress_bar(

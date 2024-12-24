@@ -92,7 +92,27 @@ class DasymetricMapper:
 
         return census, id_column, pop_column
 
-    def _validate_inputs(self, prediction_path: str, mastergrid_path: str) -> None:
+    def _check_compatibility(src_profile, 
+                             tgt_profile, 
+                             labels=['Source','Target']):
+            
+            # Check for compatible CRS
+            if tgt_profile['crs'] != src_profile['crs']:
+                raise ValueError(f"CRS mismatch between {labels[1]} and {labels[0]}")
+
+            # Check for compatible dimensions
+            if (tgt_profile['width'] != src_profile['width'] or
+                    tgt_profile['height'] != src_profile['height']):
+                raise ValueError(f"Dimension mismatch between {labels[1]} and {labels[0]}")
+
+            # Check for compatible transforms
+            if tgt_profile['transform'] != src_profile['transform']:
+                raise ValueError(f"Transform mismatch between {labels[1]} and {labels[0]}")
+
+    def _validate_inputs(self, 
+                         prediction_path: str, 
+                         mastergrid_path: str,
+                         constrain_path: Optional[str] = None) -> None:
         """
         Validate input files and their compatibility.
 
@@ -100,6 +120,7 @@ class DasymetricMapper:
             census_path: Path to census data file
             prediction_path: Path to prediction raster
             mastergrid_path: Path to mastergrid raster
+            constrain_path: Path to constraining raster
 
         Raises:
             ValueError: If files are incompatible or contain invalid data
@@ -111,6 +132,9 @@ class DasymetricMapper:
             'Prediction': prediction_path,
             'Mastergrid': mastergrid_path
         }
+
+        if constrain_path:
+            input_files['Constrain'] = constrain_path
 
         for file_type, path in input_files.items():
             if not Path(path).exists():
@@ -139,18 +163,8 @@ class DasymetricMapper:
             mst_data = mst.read(1)
             mst_nodata = mst.nodata
 
-            # Check for compatible CRS
-            if mst_profile['crs'] != pred_profile['crs']:
-                raise ValueError("CRS mismatch between prediction and mastergrid")
-
-            # Check for compatible dimensions
-            if (mst_profile['width'] != pred_profile['width'] or
-                    mst_profile['height'] != pred_profile['height']):
-                raise ValueError("Dimension mismatch between prediction and mastergrid")
-
-            # Check for compatible transforms
-            if mst_profile['transform'] != pred_profile['transform']:
-                raise ValueError("Transform mismatch between prediction and mastergrid")
+            # Check compatibility
+            _check_compatibility(mst_profile, pred_profile, labels=['mastergrid', 'prediction'])
 
             # Analyze mastergrid content
             unique_zones = np.unique(mst_data[mst_data != mst_nodata])
@@ -162,6 +176,26 @@ class DasymetricMapper:
             print(f"- Unique zones: {len(unique_zones)}")
             print(f"- Zone ID range: [{unique_zones.min()}, {unique_zones.max()}]")
             print(f"- NoData value: {mst_nodata}")
+
+        # Load and check mastergrid
+        if constrain_path:
+            with rasterio.open(constrain_path) as mst:
+                con_profile = con.profile
+                con_data = con.read(1)
+                con_nodata = con.nodata
+
+                # Check compatibility
+                _check_compatibility(con_profile, pred_profile, labels=['constraining', 'prediction'])
+
+                # Analyze mastergrid content
+                valid_con = np.unique(con_data[con_data != con_nodata])
+                if len(valid_con) == 0:
+                    raise ValueError("Constraining raster contains no valid data")
+
+                print("\nConstraining raster statistics:")
+                print(f"- Shape: {con_data.shape}")
+                print(f"- Valid pixels: {len(valid_con)}")
+                print(f"- NoData value: {con_nodata}")
 
     def _load_census(self,
                      census_path: str,
@@ -226,7 +260,7 @@ class DasymetricMapper:
         # Calculate zonal statistics
         print("\nCalculating zonal statistics...")
         sum_prob = raster_stat(prediction_path,
-                               self.settings.mastergrid,
+                               self.settings.constrain,
                                by_block=self.settings.by_block,
                                max_workers=self.settings.max_workers,
                                blocksize=self.settings.blocksize)

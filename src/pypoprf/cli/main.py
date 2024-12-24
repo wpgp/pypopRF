@@ -8,7 +8,7 @@ from ..config.settings import Settings
 from ..core.feature_extraction import FeatureExtractor
 from ..core.model import Model
 from ..core.dasymetric import DasymetricMapper
-
+from ..utils.raster import remask_layer
 
 @click.group(name='pypoprf')
 @click.version_option(version=__version__, prog_name='pypoprf')
@@ -46,6 +46,28 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
         # Create output directory if it doesn't exist
         output_dir = Path(settings.work_dir) / 'output'
         output_dir.mkdir(exist_ok=True)
+
+        # Re-mask mastergrid if requested
+        if settings.mask:
+            click.echo("Remasking mastergrid...")
+            outfile = settings.mask.replace('.tif', '_remasked.tif')
+            remask_layer(settings.mastergrid,
+                              settings.mask,
+                              1, 
+                              outfile=outfile)
+            settings.mask = outfile
+
+        # Constraining mastergrid if requested
+        if settings.constrain:
+            click.echo("Constraining mastergrid...")
+            outfile = settings.constrain.replace('.tif', '_constrained.tif')
+            remask_layer(settings.mastergrid,
+                              settings.constrain, 
+                              0,
+                              outfile=outfile)
+            settings.constrain = outfile
+        else:
+            settings.constrain = settings.mastergrid
 
         feature_extractor = FeatureExtractor(settings)
         model = Model(settings)

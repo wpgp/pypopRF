@@ -19,6 +19,8 @@ class Settings:
         work_dir (Path): Working directory path
         data_dir (Path): Data directory path
         mastergrid (str): Path to mastergrid file or 'create'
+        mask (str): Path to (water) mask file
+        constrain (str): Path to raster for constraining population distribution
         covariate (dict): Dictionary of covariate names and paths
         census (dict): Census configuration including path and column names
         output_dir (Path): Output directory path
@@ -35,6 +37,8 @@ class Settings:
                  work_dir: str = ".",
                  data_dir: str = "data",
                  mastergrid: Optional[str] = None,
+                 mask: Optional[str] = None,
+                 constrain: Optional[str] = None,
                  covariates: Optional[Dict[str, str]] = None,
                  census_data: Optional[str] = None,
                  census_pop_column: Optional[str] = None,
@@ -50,6 +54,8 @@ class Settings:
             work_dir: Root directory for the project
             data_dir: Directory containing input data files
             mastergrid: Path to mastergrid file or 'create'
+            mask (str): Path to (water) mask file
+            constrain (str): Path to raster for constraining population distribution
             covariates: Dictionary mapping covariate names to file paths
             census_data: Path to census data file
             census_pop_column: Name of population column in census data
@@ -71,6 +77,12 @@ class Settings:
         if self.mastergrid and self.mastergrid != 'create':
             if not Path(self.mastergrid).is_absolute():
                 self.mastergrid = str(self.data_dir / mastergrid)
+
+        # Handle (water) mask path
+        self.mask = str(Path(mask)) if mask else None
+
+        # Handle (water) mask path
+        self.constrain = str(Path(constrain)) if constrain else None
 
         # Process covariate paths
         self.covariate = {}
@@ -139,6 +151,14 @@ class Settings:
                 raise FileNotFoundError(f"Mastergrid file not found: {self.mastergrid}")
             with rasterio.open(self.mastergrid) as src:
                 template_profile = src.profile
+
+        if self.mask:
+            if not Path(self.mask).is_file():
+                raise FileNotFoundError(f"Mask file not found: {self.mask}")
+
+        if self.constrain:
+            if not Path(self.constrain).is_file():
+                raise FileNotFoundError(f"Constraining file not found: {self.constrain}")
 
         for name, path in self.covariate.items():
             if not Path(path).is_file():
@@ -247,6 +267,8 @@ class Settings:
             f"  Work Directory: {self.work_dir}\n"
             f"  Output Directory: {self.output_dir}\n"
             f"  Mastergrid: {self.mastergrid}\n"
+            f"  Mask: {self.mask}\n"
+            f"  Constrain: {self.constrain}\n"
             f"  Covariates:\n    {covariate_str}\n"
             f"  Census:\n"
             f"    Path: {self.census['path']}\n"

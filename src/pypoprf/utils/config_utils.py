@@ -39,6 +39,8 @@ def create_config_template(output_path: Path,
             'vol': f"{prefix}buildingVolume.tif"
         },
         'mastergrid': f"{prefix}mastergrid.tif",
+        'mask': f"{prefix}mask.tif",
+        'constrain': f"{prefix}constrain.tif",
         'census_data': f"{prefix}admin3.csv",
         'census_pop_column': "pop",
         'census_id_column': "id",
@@ -55,6 +57,8 @@ def create_config_template(output_path: Path,
 #   data_dir: Directory containing input files
 #   covariates: Dictionary of covariate raster files
 #   mastergrid: Path to mastergrid file
+#   mask: Path to mask file
+#   constrain: Path to file for constraining population dist.
 #   census_data: Path to census data file
 #   census_pop_column: Population column in census data
 #   census_id_column: ID column in census data
