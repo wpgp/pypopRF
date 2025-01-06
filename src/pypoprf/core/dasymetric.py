@@ -365,8 +365,8 @@ class DasymetricMapper:
             profile.update({
                 'dtype': 'float32',
                 'nodata': -99,
-                'blocksize': self.settings.block_size[0],
-                'blocksize': self.settings.block_size[1]
+                'blockxsize': self.settings.block_size[0],
+                'blockysize': self.settings.block_size[1]
             })
 
             def process_window(window):
@@ -551,8 +551,8 @@ class DasymetricMapper:
             profile.update({
                 'dtype': 'float32',
                 'nodata': -99,
-                'blocksize': self.settings.block_size[0],
-                'blocksize': self.settings.block_size[1],
+                'blockxsize': self.settings.block_size[0],
+                'blockysize': self.settings.block_size[1],
             })
 
         # Create normalized raster
@@ -620,8 +620,8 @@ class DasymetricMapper:
             profile.update({
                 'dtype': 'int32',  # Population counts should be integers
                 'nodata': -99,
-                'blocksize': self.settings.block_size[0],
-                'blocksize': self.settings.block_size[1],
+                'blockxsize': self.settings.block_size[0],
+                'blockysize': self.settings.block_size[1],
             })
 
         # Create dasymetric raster
@@ -665,19 +665,17 @@ class DasymetricMapper:
         return str(output_path)
 
     def map(self,
-            prediction_path: str,
-            mask: Optional[str] = None) -> str:
+            prediction_path: str) -> str:
         """
         Perform dasymetric mapping using prediction raster and census data.
 
         Args:
             prediction_path: Path to prediction raster from model
-            mask: Optional path to mask raster
 
         Returns:
             Path to final dasymetric population raster
         """
-        print("\nStarting dasymetric mapping process...")
+
         t0 = time.time()
 
         # Load and validate inputs

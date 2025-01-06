@@ -84,7 +84,7 @@ class Settings:
             if not Path(self.mask).is_absolute():
                 self.mask = str(self.data_dir / mask)
 
-        # Handle (water) mask path
+        # Handle constrain path
         self.constrain = str(Path(constrain)) if constrain else None
         if self.constrain:
             if not Path(self.constrain).is_absolute():

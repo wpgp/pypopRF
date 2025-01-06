@@ -38,101 +38,98 @@ def cli(ctx):
               help='Skip visualization')
 def run(config_file: str, verbose: bool, no_viz: bool) -> None:
     """Run the complete population modeling workflow."""
-    try:
-        settings = Settings.from_file(config_file)
-        if verbose:
-            click.echo(str(settings))
+    settings = Settings.from_file(config_file)
+    if verbose:
+        click.echo(str(settings))
 
-        # Create output directory if it doesn't exist
-        output_dir = Path(settings.work_dir) / 'output'
-        output_dir.mkdir(exist_ok=True)
+    # Create output directory if it doesn't exist
+    output_dir = Path(settings.work_dir) / 'output'
+    output_dir.mkdir(exist_ok=True)
 
-        # Re-mask mastergrid if requested
-        if settings.mask:
-            click.echo("Remasking mastergrid...")
-            outfile = settings.mask.replace('.tif', '_remasked.tif')
-            remask_layer(settings.mastergrid,
-                         settings.mask,
-                         1,
-                         outfile=outfile,
-                         block_size=settings.block_size)
-            settings.mask = outfile
+    # Re-mask mastergrid if requested
+    if settings.mask:
+        click.echo("Remasking mastergrid...")
+        outfile = settings.mask.replace('.tif', '_remasked.tif')
+        remask_layer(settings.mastergrid,
+                     settings.mask,
+                     1,
+                     outfile=outfile,
+                     block_size=settings.block_size)
+        settings.mask = outfile
 
-        # Constraining mastergrid if requested
-        if settings.constrain:
-            click.echo("Constraining mastergrid...")
-            outfile = settings.constrain.replace('.tif', '_constrained.tif')
-            remask_layer(settings.mastergrid,
-                         settings.constrain,
-                         0,
-                         outfile=outfile,
-                         block_size=settings.block_size)
-            settings.constrain = outfile
-        else:
-            settings.constrain = settings.mastergrid
+    # Constraining mastergrid if requested
+    if settings.constrain:
+        click.echo("Constraining mastergrid...")
+        outfile = settings.constrain.replace('.tif', '_constrained.tif')
+        remask_layer(settings.mastergrid,
+                     settings.constrain,
+                     0,
+                     outfile=outfile,
+                     block_size=settings.block_size)
+        settings.constrain = outfile
+    else:
+        settings.constrain = settings.mastergrid
 
-        feature_extractor = FeatureExtractor(settings)
-        model = Model(settings)
-        mapper = DasymetricMapper(settings)
+    feature_extractor = FeatureExtractor(settings)
+    model = Model(settings)
+    mapper = DasymetricMapper(settings)
 
-        # Run workflow
-        click.echo("Extracting features...")
-        features = feature_extractor.extract()
+    # Run workflow
+    click.echo("\nExtracting features...")
+    features = feature_extractor.extract()
 
-        click.echo("Training model...")
-        model.train(features)
+    click.echo("\nTraining model...")
+    model.train(features)
 
-        click.echo("Making predictions...")
-        predictions = model.predict()
+    click.echo("\nMaking predictions...")
+    predictions = model.predict()
 
-        click.echo("Performing dasymetric mapping...")
-        mapper.map(predictions)
+    click.echo("\nPerforming dasymetric mapping...")
+    mapper.map(predictions)
 
-        if not no_viz:
-            click.echo("Creating visualization...")
-            from ..utils.visualization import Visualizer
-            visualizer = Visualizer(settings)
+    if not no_viz:
+        click.echo("Creating visualization...")
+        from ..utils.visualization import Visualizer
+        visualizer = Visualizer(settings)
 
-            # Validate paths exist
-            viz_paths = {
-                'mastergrid': settings.mastergrid,
-                'prediction': str(output_dir / 'prediction.tif'),
-                'normalized_census': str(output_dir / 'normalized_census.tif'),
-                'population': str(output_dir / 'dasymetric.tif')
-            }
+        # Validate paths exist
+        viz_paths = {
+            'mastergrid': settings.mastergrid,
+            'prediction': str(output_dir / 'prediction.tif'),
+            'normalized_census': str(output_dir / 'normalized_census.tif'),
+            'population': str(output_dir / 'dasymetric.tif')
+        }
 
-            for name, path in viz_paths.items():
-                if not Path(path).exists():
-                    raise FileNotFoundError(f"Required file for visualization not found: {name} at {path}")
+        for name, path in viz_paths.items():
+            if not Path(path).exists():
+                raise FileNotFoundError(f"Required file for visualization not found: {name} at {path}")
 
-            # Create visualization
-            viz_output = str(output_dir / 'visualization.png')
-            visualizer.map_redistribute(
-                mastergrid_path=viz_paths['mastergrid'],
-                probability_path=viz_paths['prediction'],
-                normalize_path=viz_paths['normalized_census'],
-                population_path=viz_paths['population'],
-                output_path=viz_output,
-                vis_params={
-                    'vmin': [0, 0, 0, 0],
-                    'vmax': [1300, 250, 1, 250],
-                    'cmap': 'viridis',
-                    'titles': ['Zones', 'Probability', 'Normalized Zones', 'Redistributed']
-                },
-                dpi=300,
-                figsize=(15, 5),
-                nodata=-99
-            )
-            click.echo(f"Visualization saved as '{viz_output}'")
+        # Create visualization
+        viz_output = str(output_dir / 'visualization.png')
+        visualizer.map_redistribute(
+            mastergrid_path=viz_paths['mastergrid'],
+            probability_path=viz_paths['prediction'],
+            normalize_path=viz_paths['normalized_census'],
+            population_path=viz_paths['population'],
+            output_path=viz_output,
+            vis_params={
+                'vmin': [0, 0, 0, 0],
+                'vmax': [1300, 250, 1, 250],
+                'cmap': 'viridis',
+                'titles': ['Zones', 'Probability', 'Normalized Zones', 'Redistributed']
+            },
+            dpi=300,
+            figsize=(15, 5),
+            nodata=-99
+        )
+        click.echo(f"Visualization saved as '{viz_output}'")
 
-        click.echo("Population modeling completed successfully!")
+    click.echo("Population modeling completed successfully!")
 
-    except Exception as e:
-        click.echo(f"Error during execution: {str(e)}", err=True)
-        if verbose:
-            import traceback
-            click.echo(traceback.format_exc(), err=True)
-        raise click.Abort()
+    if verbose:
+        import traceback
+        click.echo(traceback.format_exc(), err=True)
+    raise click.Abort()
 
 
 @cli.command()

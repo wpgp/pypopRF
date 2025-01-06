@@ -19,6 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+popupy.egg-info
 
 # Virtual Environment
 venv/

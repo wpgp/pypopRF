@@ -145,9 +145,7 @@ class Model:
         if plot:
             self._plot_feature_importance(importances, limit)
 
-        print(f'Selected {len(selected)} features out of {len(names)} features')
-        print(selected.tolist())
-
+        print(f'Selected {len(selected)} features out of {len(names)} features: {selected.tolist()}')
         return importances, selected
 
     @with_non_interactive_matplotlib
@@ -206,15 +204,14 @@ class Model:
             scores['test_n' + k] = scores['test_' + k] / self.target_mean
             scores['train_n' + k] = scores['train_' + k] / self.target_mean
 
-        print('\nTraining scores:')
+        print('\nScores:')
+        print(f"{'Metric':6s}  {'Train':>8s}  {'Test':>8s}")
+        print('-' * 30)
         for k in scoring:
-            a = scoring[k][0] * scores[f'train_{k}']
-            print(f'{scoring[k][1]:6s}: {a.mean():.2f}')
+            train = scoring[k][0] * scores[f'train_{k}'].mean()
+            test = scoring[k][0] * scores[f'test_{k}'].mean()
+            print(f"{scoring[k][1]:6s}: {train:8.2f}  {test:8.2f}")
 
-        print('\nTesting scores:')
-        for k in scoring:
-            a = scoring[k][0] * scores[f'test_{k}']
-            print(f'{scoring[k][1]:6s}: {a.mean():.2f}')
 
     @with_non_interactive_matplotlib
     def predict(self) -> str:
@@ -245,8 +242,8 @@ class Model:
                 profile = mst.profile.copy()
                 profile.update({
                     'dtype': 'float32',
-                    'blocksize': self.settings.block_size[0],
-                    'blocksize': self.settings.block_size[1],
+                    'blockxsize': self.settings.block_size[0],
+                    'blockysize': self.settings.block_size[1],
                 })
 
                 # Setup locks
