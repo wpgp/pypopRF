@@ -177,24 +177,24 @@ def aggregate_table(df: pd.DataFrame, prefix: str = '', min_count: int = 1) -> p
 
 
 def get_windows(src, 
-                blocksize: Optional[Tuple[int, int]] = (512, 512)
+                block_size: Optional[Tuple[int, int]] = (512, 512)
     ):
     """
     Get block/window tiles for reading/writing raster
 
     Args:
         src: rasterio.open
-        blocksize: tuple defining block/window size
+        block_size: tuple defining block/window size
 
     Returns:
         List of windows
 
     """
 
-    x0 = np.arange(0, src.width, blocksize[0])
-    y0 = np.arange(0, src.height, blocksize[1])
+    x0 = np.arange(0, src.width, block_size[0])
+    y0 = np.arange(0, src.height, block_size[1])
     grid = np.meshgrid(x0, y0)
-    windows = [rasterio.windows.Window(a, b, blocksize[0], blocksize[1])
+    windows = [rasterio.windows.Window(a, b, block_size[0], block_size[1])
                 for (a, b) in zip(grid[0].flatten(), grid[1].flatten())]
 
     return windows
@@ -206,8 +206,8 @@ def remask_layer(mastergrid: str,
                  outfile: Optional[str] = 'remasked_layer.tif',
                  by_block: bool = True,
                  max_workers: int = 4,
-                 blocksize: Optional[Tuple[int, int]] = None,
-                 show_progress: bool = True
+                 block_size: Optional[Tuple[int, int]] = None,
+                 show_progress: bool = False
     ):
 
     """
@@ -243,10 +243,7 @@ def remask_layer(mastergrid: str,
                     dst.write(m, 1, window=window)
 
             if by_block:
-                if blocksize is None:
-                    windows = [window for ij, window in tgt.block_windows()]
-                else:
-                    windows = get_windows(mst, blocksize)
+                windows = get_windows(mst, block_size if block_size else (512, 512))
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     progress_bar(executor.map(process, windows),
@@ -271,7 +268,7 @@ def raster_stat(infile: str,
                 mastergrid: str,
                 by_block: bool = True,
                 max_workers: int = 4,
-                blocksize: Optional[Tuple[int, int]] = None,
+                block_size: Optional[Tuple[int, int]] = None,
                 show_progress: bool = True) -> pd.DataFrame:
     """
     Calculate zonal statistics for a raster.
@@ -281,7 +278,7 @@ def raster_stat(infile: str,
         mastergrid: Mastergrid raster path
         by_block: Whether to process by blocks
         max_workers: Number of worker processes
-        blocksize: Size of processing blocks
+        block_size: Size of processing blocks
         show_progress: Whether to show progress bar
 
     Returns:
@@ -308,10 +305,7 @@ def raster_stat(infile: str,
                 return d
 
             if by_block:
-                if blocksize is None:
-                    windows = [window for ij, window in tgt.block_windows()]
-                else:
-                    windows = get_windows(mst, blocksize)
+                windows = get_windows(mst, block_size if block_size else (512, 512))
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     df = list(progress_bar(executor.map(process, windows),
@@ -341,7 +335,7 @@ def raster_stat_stack(infiles: Dict[str, str],
                       mastergrid: str,
                       by_block: bool = True,
                       max_workers: int = 4,
-                      blocksize: Optional[Tuple[int, int]] = None,
+                      block_size: Optional[Tuple[int, int]] = None,
                       show_progress: bool = True) -> pd.DataFrame:
     """
     Calculate zonal statistics for multiple rasters.
@@ -351,7 +345,7 @@ def raster_stat_stack(infiles: Dict[str, str],
         mastergrid: Master grid raster path
         by_block: Whether to process by blocks
         max_workers: Number of worker processes
-        blocksize: Size of processing blocks
+        block_size: Size of processing blocks
         show_progress: Whether to show progress bar
 
     Returns:
@@ -383,11 +377,7 @@ def raster_stat_stack(infiles: Dict[str, str],
                     return d
 
                 if by_block:
-                    if blocksize is None:
-                        # Use first raster to determine blocks
-                        windows = [window for ij, window in targets[0].block_windows()]
-                    else:
-                        windows = get_windows(mst, blocksize)
+                    windows = get_windows(mst, block_size if block_size else (512, 512))
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                         df = list(progress_bar(

@@ -150,7 +150,7 @@ class FeatureExtractor:
             self.settings.mastergrid,
             by_block=self.settings.by_block,
             max_workers=self.settings.max_workers,
-            blocksize=self.settings.blocksize
+            block_size=self.settings.block_size
         )
 
         # Load and validate census data

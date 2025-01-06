@@ -245,8 +245,8 @@ class Model:
                 profile = mst.profile.copy()
                 profile.update({
                     'dtype': 'float32',
-                    'blockxsize': self.settings.blocksize[0],
-                    'blockysize': self.settings.blocksize[1],
+                    'blocksize': self.settings.block_size[0],
+                    'blocksize': self.settings.block_size[1],
                 })
 
                 # Setup locks

@@ -25,7 +25,7 @@ class Settings:
         census (dict): Census configuration including path and column names
         output_dir (Path): Output directory path
         by_block (bool): Whether to process by blocks
-        blocksize (tuple): Size of processing blocks (width, height)
+        block_size (tuple): Size of processing blocks (width, height)
         max_workers (int): Maximum number of parallel workers
         show_progress (bool): Whether to show progress bars
 
@@ -80,9 +80,15 @@ class Settings:
 
         # Handle (water) mask path
         self.mask = str(Path(mask)) if mask else None
+        if self.mask:
+            if not Path(self.mask).is_absolute():
+                self.mask = str(self.data_dir / mask)
 
         # Handle (water) mask path
         self.constrain = str(Path(constrain)) if constrain else None
+        if self.constrain:
+            if not Path(self.constrain).is_absolute():
+                self.constrain = str(self.data_dir / constrain)
 
         # Process covariate paths
         self.covariate = {}
@@ -113,7 +119,7 @@ class Settings:
 
         # Set processing parameters
         self.by_block = True
-        self.blocksize = tuple(block_size)
+        self.block_size = tuple(block_size)
         self.max_workers = max_workers
         self.show_progress = show_progress
 
@@ -152,13 +158,16 @@ class Settings:
             with rasterio.open(self.mastergrid) as src:
                 template_profile = src.profile
 
-        if self.mask:
-            if not Path(self.mask).is_file():
+        if self.mask is not None:
+            mask_path = Path(self.mask)
+            if not mask_path.is_file():
                 raise FileNotFoundError(f"Mask file not found: {self.mask}")
 
-        if self.constrain:
-            if not Path(self.constrain).is_file():
-                raise FileNotFoundError(f"Constraining file not found: {self.constrain}")
+        if self.constrain is not None:
+            constrain_path = Path(self.constrain)
+            if not constrain_path.is_file():
+                warnings.warn(f"Constraining file not found: {self.constrain}, proceeding without constrain")
+                self.constrain = None
 
         for name, path in self.covariate.items():
             if not Path(path).is_file():
@@ -276,7 +285,7 @@ class Settings:
             f"    ID Column: {self.census['id_column']}\n"
             f"  Processing:\n"
             f"    By Block: {self.by_block}\n"
-            f"    Block Size: {self.blocksize}\n"
+            f"    Block Size: {self.block_size}\n"
             f"    Max Workers: {self.max_workers}\n"
             f"    Show Progress: {self.show_progress}"
         )

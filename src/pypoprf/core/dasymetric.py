@@ -92,6 +92,7 @@ class DasymetricMapper:
 
         return census, id_column, pop_column
 
+    @staticmethod
     def _check_compatibility(src_profile, 
                              tgt_profile, 
                              labels=['Source','Target']):
@@ -125,7 +126,6 @@ class DasymetricMapper:
         Raises:
             ValueError: If files are incompatible or contain invalid data
         """
-        print("\nValidating input files...")
 
         # Check file existence
         input_files = {
@@ -164,7 +164,7 @@ class DasymetricMapper:
             mst_nodata = mst.nodata
 
             # Check compatibility
-            _check_compatibility(mst_profile, pred_profile, labels=['mastergrid', 'prediction'])
+            self._check_compatibility(mst_profile, pred_profile, labels=['mastergrid', 'prediction'])
 
             # Analyze mastergrid content
             unique_zones = np.unique(mst_data[mst_data != mst_nodata])
@@ -185,7 +185,7 @@ class DasymetricMapper:
                 con_nodata = con.nodata
 
                 # Check compatibility
-                _check_compatibility(con_profile, pred_profile, labels=['constraining', 'prediction'])
+                self._check_compatibility(con_profile, pred_profile, labels=['constraining', 'prediction'])
 
                 # Analyze mastergrid content
                 valid_con = np.unique(con_data[con_data != con_nodata])
@@ -260,10 +260,10 @@ class DasymetricMapper:
         # Calculate zonal statistics
         print("\nCalculating zonal statistics...")
         sum_prob = raster_stat(prediction_path,
-                               self.settings.constrain,
+                               self.settings.mastergrid,
                                by_block=self.settings.by_block,
                                max_workers=self.settings.max_workers,
-                               blocksize=self.settings.blocksize)
+                               block_size=self.settings.block_size)
 
         print("\nZonal Statistics Summary:")
         print(f"Number of zones: {len(sum_prob)}")
@@ -365,8 +365,8 @@ class DasymetricMapper:
             profile.update({
                 'dtype': 'float32',
                 'nodata': -99,
-                'blockxsize': self.settings.blocksize[0],
-                'blockysize': self.settings.blocksize[1]
+                'blocksize': self.settings.block_size[0],
+                'blocksize': self.settings.block_size[1]
             })
 
             def process_window(window):
@@ -551,8 +551,8 @@ class DasymetricMapper:
             profile.update({
                 'dtype': 'float32',
                 'nodata': -99,
-                'blockxsize': self.settings.blocksize[0],
-                'blockysize': self.settings.blocksize[1],
+                'blocksize': self.settings.block_size[0],
+                'blocksize': self.settings.block_size[1],
             })
 
         # Create normalized raster
@@ -620,8 +620,8 @@ class DasymetricMapper:
             profile.update({
                 'dtype': 'int32',  # Population counts should be integers
                 'nodata': -99,
-                'blockxsize': self.settings.blocksize[0],
-                'blockysize': self.settings.blocksize[1],
+                'blocksize': self.settings.block_size[0],
+                'blocksize': self.settings.block_size[1],
             })
 
         # Create dasymetric raster

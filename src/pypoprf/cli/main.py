@@ -52,9 +52,10 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
             click.echo("Remasking mastergrid...")
             outfile = settings.mask.replace('.tif', '_remasked.tif')
             remask_layer(settings.mastergrid,
-                              settings.mask,
-                              1, 
-                              outfile=outfile)
+                         settings.mask,
+                         1,
+                         outfile=outfile,
+                         block_size=settings.block_size)
             settings.mask = outfile
 
         # Constraining mastergrid if requested
@@ -62,9 +63,10 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
             click.echo("Constraining mastergrid...")
             outfile = settings.constrain.replace('.tif', '_constrained.tif')
             remask_layer(settings.mastergrid,
-                              settings.constrain, 
-                              0,
-                              outfile=outfile)
+                         settings.constrain,
+                         0,
+                         outfile=outfile,
+                         block_size=settings.block_size)
             settings.constrain = outfile
         else:
             settings.constrain = settings.mastergrid
