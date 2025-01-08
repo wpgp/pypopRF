@@ -3,6 +3,9 @@ from pathlib import Path
 from typing import Dict, Any
 import yaml
 
+from pypoprf.utils.logger import get_logger
+
+logger = get_logger()
 
 def create_config_template(output_path: Path,
                            data_dir: str = "data",
@@ -19,17 +22,24 @@ def create_config_template(output_path: Path,
         ValueError: If arguments are invalid
         OSError: If file cannot be written
     """
+    logger.info("Creating configuration template")
+    logger.debug(f"Parameters: output_path={output_path}, data_dir={data_dir}, prefix={prefix}")
+
     # Validate inputs
     if not isinstance(output_path, (str, Path)):
+        logger.error("output_path must be string or Path")
         raise ValueError("output_path must be string or Path")
     output_path = Path(output_path)
 
     if not isinstance(data_dir, str):
+        logger.error("data_dir must be string")
         raise ValueError("data_dir must be string")
     if not isinstance(prefix, str):
+        logger.error("prefix must be string")
         raise ValueError("prefix must be string")
 
     # Define default configuration
+    logger.debug("Creating default configuration dictionary")
     config: Dict[str, Any] = {
         'work_dir': ".",
         'data_dir': data_dir,
@@ -47,8 +57,13 @@ def create_config_template(output_path: Path,
         'output_dir': "output",
         'block_size': [512, 512],
         'max_workers': 8,
-        'show_progress': True
+        'show_progress': True,
+        'logging': {
+            'level': 'INFO',
+            'file': 'pypoprf.log',
+        },
     }
+    logger.debug(f"Configuration template created with covariates: {list(config['covariates'].keys())}")
 
     header_comment = """# pypopRF configuration file
 #
@@ -66,6 +81,16 @@ def create_config_template(output_path: Path,
 #   block_size: Processing block size [width, height]
 #   max_workers: Number of parallel workers
 #   show_progress: Whether to show progress bars
+#   logging: Settings for logging process
+#     level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+#     file: Log file name (default: pypoprf.log, saved in output directory)
+
+# Logging levels:
+#   DEBUG    - Detailed information for debugging
+#   INFO     - Confirmation that things are working as expected
+#   WARNING  - Something unexpected happened but process continues
+#   ERROR    - Serious problem, software is unable to perform function
+#   CRITICAL - Program cannot continue running
 #
 # Example covariates:
 #   covariates:
@@ -77,11 +102,17 @@ def create_config_template(output_path: Path,
     try:
         # Create parent directories if needed
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Created parent directories: {output_path.parent}")
 
         # Write config file
+        logger.info(f"Writing configuration to: {output_path}")
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(header_comment)
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        logger.info("Configuration template created successfully")
+
 
     except Exception as e:
-        raise OSError(f"Failed to write config file: {str(e)}")
+        error_msg = f"Failed to write config file: {str(e)}"
+        logger.error(error_msg)
+        raise OSError(error_msg)

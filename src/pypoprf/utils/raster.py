@@ -9,8 +9,10 @@ from rasterio.windows import Window
 from tqdm import tqdm
 import concurrent.futures
 
+from .logger import get_logger
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
 
+logger = get_logger()
 
 def progress_bar(iterable: Any,
                  show: bool,
@@ -54,13 +56,14 @@ def raster_compare(p1: Dict,
     required = []
     for p in ['crs', 'width', 'height']:
         if p1[p] != p2[p]:
-            print(f'rasters have different [{p}]')
-            print(f'required process: {process[p]}')
+            logger.info(f'Rasters have different [{p}]')
+            logger.info(f'Required process: {process[p]}')
             required.append(process[p])
 
     if p1['transform'][0] != p2['transform'][0]:
-        print('rasters have different resolutions')
-        print('required process: resampling')
+        logger.info('Rasters have different resolutions')
+        logger.info('Required process: resampling')
+
         required.append('resampling')
 
     return required
@@ -325,7 +328,8 @@ def raster_stat(infile: str,
 
     out_df = aggregate_table(res)
     duration = time.time() - t0
-    print(f'Raster statistics is finished in {duration:.2f} sec')
+    logger.info(f'Raster statistics is finished in {duration:.2f} sec')
+
 
     return out_df
 
@@ -411,6 +415,6 @@ def raster_stat_stack(infiles: Dict[str, str],
         raise RuntimeError(f"Error processing raster stack: {str(e)}")
 
     duration = time.time() - t0
-    print(f'Raster statistics is finished in {duration:.2f} sec')
+    logger.info(f'Raster statistics is finished in {duration:.2f} sec')
 
     return out_df

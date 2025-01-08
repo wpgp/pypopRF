@@ -4,11 +4,14 @@ from pypoprf import __version__
 from pathlib import Path
 
 from pypoprf.utils.config_utils import create_config_template
+from pypoprf.utils.logger import get_logger
 from ..config.settings import Settings
 from ..core.feature_extraction import FeatureExtractor
 from ..core.model import Model
 from ..core.dasymetric import DasymetricMapper
 from ..utils.raster import remask_layer
+
+logger = get_logger()
 
 @click.group(name='pypoprf')
 @click.version_option(version=__version__, prog_name='pypoprf')
@@ -38,17 +41,22 @@ def cli(ctx):
               help='Skip visualization')
 def run(config_file: str, verbose: bool, no_viz: bool) -> None:
     """Run the complete population modeling workflow."""
+    logger.info(f"Starting population modeling workflow with config: {config_file}")
+
     settings = Settings.from_file(config_file)
+    logger.debug(f"Settings: {str(settings)}")
+
     if verbose:
-        click.echo(str(settings))
+        logger.set_level('DEBUG')
 
     # Create output directory if it doesn't exist
     output_dir = Path(settings.work_dir) / 'output'
     output_dir.mkdir(exist_ok=True)
+    logger.info(f"Output directory created: {output_dir}")
 
     # Re-mask mastergrid if requested
     if settings.mask:
-        click.echo("Remasking mastergrid...")
+        logger.info("Remasking mastergrid...")
         outfile = settings.mask.replace('.tif', '_remasked.tif')
         remask_layer(settings.mastergrid,
                      settings.mask,
@@ -59,7 +67,7 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
 
     # Constraining mastergrid if requested
     if settings.constrain:
-        click.echo("Constraining mastergrid...")
+        logger.info("Constraining mastergrid...")
         outfile = settings.constrain.replace('.tif', '_constrained.tif')
         remask_layer(settings.mastergrid,
                      settings.constrain,
@@ -75,24 +83,23 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
     mapper = DasymetricMapper(settings)
 
     # Run workflow
-    click.echo("\nExtracting features...")
+    logger.info("Starting feature extraction...")
     features = feature_extractor.extract()
 
-    click.echo("\nTraining model...")
+    logger.info("Starting model training...")
     model.train(features)
 
-    click.echo("\nMaking predictions...")
+    logger.info("Making predictions...")
     predictions = model.predict()
 
-    click.echo("\nPerforming dasymetric mapping...")
+    logger.info("Performing dasymetric mapping...")
     mapper.map(predictions)
 
     if not no_viz:
-        click.echo("Creating visualization...")
+        logger.info("Creating visualization...")
         from ..utils.visualization import Visualizer
         visualizer = Visualizer(settings)
 
-        # Validate paths exist
         viz_paths = {
             'mastergrid': settings.mastergrid,
             'prediction': str(output_dir / 'prediction.tif'),
@@ -102,6 +109,8 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
 
         for name, path in viz_paths.items():
             if not Path(path).exists():
+                error_msg = f"Required file for visualization not found: {name} at {path}"
+                logger.error(error_msg)
                 raise FileNotFoundError(f"Required file for visualization not found: {name} at {path}")
 
         # Create visualization
@@ -122,9 +131,9 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
             figsize=(15, 5),
             nodata=-99
         )
-        click.echo(f"Visualization saved as '{viz_output}'")
+        logger.info(f"Visualization saved as '{viz_output}'")
 
-    click.echo("Population modeling completed successfully!")
+    logger.info("Population modeling completed successfully!")
 
     if verbose:
         import traceback
@@ -158,23 +167,23 @@ def init(project_dir: str, data_dir: str, prefix: str):
             prefix=prefix
         )
 
-        click.echo(f"Initialized new pypopRF project in {project_dir}")
-        click.echo("\nCreated directory structure:")
-        click.echo(f"{project_dir}/")
-        click.echo("|-- config.yaml")
-        click.echo(f"|-- {data_dir}/")
-        click.echo("|   |-- (place your input files here)")
-        click.echo("|-- output/")
+        logger.info(f"Initialized new pypopRF project in {project_dir}")
+        logger.info("\nCreated directory structure:")
+        logger.info(f"{project_dir}/")
+        logger.info("|-- config.yaml")
+        logger.info(f"|-- {data_dir}/")
+        logger.info("|   |-- (place your input files here)")
+        logger.info("|-- output/")
 
-        click.echo("\nExpected input files:")
-        click.echo(f"  {prefix}buildingCount.tif")
-        click.echo(f"  {prefix}buildingSurface.tif")
-        click.echo(f"  {prefix}buildingVolume.tif")
-        click.echo(f"  {prefix}mastergrid.tif")
-        click.echo(f"  {prefix}admin3.csv")
+        logger.info("\nExpected input files:")
+        logger.info(f"  {prefix}buildingCount.tif")
+        logger.info(f"  {prefix}buildingSurface.tif")
+        logger.info(f"  {prefix}buildingVolume.tif")
+        logger.info(f"  {prefix}mastergrid.tif")
+        logger.info(f"  {prefix}admin3.csv")
 
     except Exception as e:
-        click.echo(f"Error during initialization: {str(e)}", err=True)
+        logger.error(f"Error during initialization: {str(e)}")
         raise click.Abort()
 
 

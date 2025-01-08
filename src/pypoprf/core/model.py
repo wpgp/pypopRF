@@ -15,9 +15,11 @@ from sklearn.inspection import permutation_importance
 
 from ..config.settings import Settings
 from ..utils.joblib_manager import joblib_resources
+from ..utils.logger import get_logger
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
 from ..utils.raster import progress_bar
 
+logger = get_logger()
 
 class Model:
     """
@@ -71,6 +73,7 @@ class Model:
             ValueError: If input data is invalid
             RuntimeError: If model loading fails
         """
+        logger.info("Starting model training process")
 
         data = data.dropna()
         drop_cols = np.intersect1d(data.columns.values, ['id', 'pop', 'dens'])
@@ -79,35 +82,61 @@ class Model:
         self.target_mean = y.mean()
         self.feature_names = X.columns.values
 
+        logger.debug(f"Features selected: {self.feature_names.tolist()}")
+        logger.debug(f"Target mean: {self.target_mean:.4f}")
+
         if scaler_path is None:
+            logger.info("Creating new scaler")
             self.scaler = RobustScaler()
             self.scaler.fit(X)
         else:
+            logger.info(f"Loading scaler from: {scaler_path}")
             with joblib_resources():
-                self.scaler = joblib.load(scaler_path)
+                try:
+                    self.scaler = joblib.load(scaler_path)
+                    logger.debug("Scaler loaded successfully")
+                except Exception as e:
+                    logger.error(f"Failed to load scaler: {str(e)}")
+                    raise
 
         if model_path is None:
+            logger.info("Training new model")
             X_scaled = self.scaler.transform(X)
             self.model = RandomForestRegressor(n_estimators=500)
+            logger.debug(f"Initialized RandomForestRegressor with {self.model.n_estimators} trees")
 
             with joblib_resources():
+                logger.info("Performing feature selection")
                 importances, selected = self._select_features(X_scaled, y)
+                logger.debug(f"Selected {len(selected)} features")
 
             X = X[selected]
             self.scaler.fit(X)
             X_scaled = self.scaler.transform(X)
 
-            print(f'Training RF model with {self.model.n_estimators} trees')
+            logger.info("Fitting Random Forest model")
             self.model.fit(X_scaled, y)
+            logger.debug("Model fitting completed")
         else:
+            logger.info(f"Loading model from: {model_path}")
             with joblib_resources():
-                self.model = joblib.load(model_path)
+                try:
+                    self.model = joblib.load(model_path)
+                    logger.debug("Model loaded successfully")
+                except Exception as e:
+                    logger.error(f"Failed to load model: {str(e)}")
+                    raise
+
         with joblib_resources():
+            logger.info("Calculating cross-validation scores")
             self._calculate_cv_scores(X_scaled, y)
 
         if save_model:
+            logger.info("Saving model and scaler")
             with joblib_resources():
                 self._save_model()
+
+        logger.info("Model training completed successfully")
 
     def _select_features(self,
                          X: np.ndarray,
@@ -117,14 +146,16 @@ class Model:
         """
         Select features based on importance using permutation importance.
         """
-        print('Selecting predictive features')
+        logger.info("Starting feature selection")
+        logger.debug(f"Selection threshold: {limit}")
 
         names = self.feature_names
         ymean = self.target_mean
 
-        # Fit model
+        logger.debug("Fitting initial model for feature importance")
         model = self.model.fit(X, y)
 
+        logger.info("Calculating permutation importance")
         result = permutation_importance(
             model, X, y,
             n_repeats=10,
@@ -141,11 +172,13 @@ class Model:
 
         selected = importances.columns.values[importances.mean(axis=0) > limit]
 
-        # Create visualization if requested
         if plot:
+            logger.debug("Creating feature importance plot")
             self._plot_feature_importance(importances, limit)
 
-        print(f'Selected {len(selected)} features out of {len(names)} features: {selected.tolist()}')
+        logger.info(f"Selected {len(selected)} features out of {len(names)} features")
+        logger.debug(f"Selected features: {selected.tolist()}")
+
         return importances, selected
 
     @with_non_interactive_matplotlib
@@ -159,6 +192,7 @@ class Model:
             importance_df: DataFrame with feature importances
             limit: Threshold line to display
         """
+        logger.info("Creating feature importance plot")
 
         sy = importance_df.shape[1] * 0.25 + 0.5
         fig, ax = plt.subplots(1, 1, figsize=(4, sy), dpi=90)
@@ -179,13 +213,15 @@ class Model:
         plt.savefig(save_path)
         plt.close()
 
+        logger.info(f"Feature importance plot saved to: {save_path}")
+
     def _calculate_cv_scores(self,
                              X_scaled: np.ndarray,
                              y: np.ndarray,
                              cv: int = 10) -> None:
         """Calculate and print cross-validation scores."""
 
-        print('\nComputing CV scores...')
+        logger.debug(f"CV folds: {cv}")
 
         scoring = {'r2': (100, 'R2'),
                    'neg_root_mean_squared_error': (-1, 'RMSE'),
@@ -204,13 +240,10 @@ class Model:
             scores['test_n' + k] = scores['test_' + k] / self.target_mean
             scores['train_n' + k] = scores['train_' + k] / self.target_mean
 
-        print('\nScores:')
-        print(f"{'Metric':6s}  {'Train':>8s}  {'Test':>8s}")
-        print('-' * 30)
         for k in scoring:
             train = scoring[k][0] * scores[f'train_{k}'].mean()
             test = scoring[k][0] * scores[f'test_{k}'].mean()
-            print(f"{scoring[k][1]:6s}: {train:8.2f}  {test:8.2f}")
+            gap = abs(train - test)
 
 
     @with_non_interactive_matplotlib
@@ -225,17 +258,22 @@ class Model:
             RuntimeError: If model is not trained
             FileNotFoundError: If input rasters are missing
         """
+        logger.info("Starting prediction generation")
 
         if self.model is None or self.scaler is None:
+            logger.error("Model not trained. Call train() first")
             raise RuntimeError("Model not trained. Call train() first.")
 
         with joblib_resources():
+            logger.debug("Opening covariate rasters")
             src = {}
             for k in self.settings.covariate:
                 src[k] = rasterio.open(self.settings.covariate[k], 'r')
+                logger.debug(f"Opened covariate: {k}")
 
             try:
                 # Open mastergrid
+                logger.debug("Opening mastergrid")
                 mst = rasterio.open(self.settings.mastergrid, 'r')
 
                 # Get profile from mastergrid
@@ -245,6 +283,7 @@ class Model:
                     'blockxsize': self.settings.block_size[0],
                     'blockysize': self.settings.block_size[1],
                 })
+                logger.debug("Profile created from mastergrid")
 
                 # Setup locks
                 reading_lock = threading.Lock()
@@ -252,6 +291,7 @@ class Model:
 
                 names = self.feature_names
                 outfile = Path(self.settings.output_dir) / 'prediction.tif'
+                logger.info(f"Output will be saved to: {outfile}")
 
                 with rasterio.open(outfile, 'w', **profile) as dst:
                     def process(window):
@@ -272,6 +312,7 @@ class Model:
                             dst.write(res, window=window, indexes=1)
 
                     if self.settings.by_block:
+                        logger.info("Processing by blocks")
                         windows = [window for ij, window in dst.block_windows()]
                         with concurrent.futures.ThreadPoolExecutor(
                                 max_workers=self.settings.max_workers
@@ -284,10 +325,13 @@ class Model:
                             ))
 
             finally:
+                logger.debug("Closing mastergrid")
                 mst.close()
+                logger.debug("Closing covariate rasters")
                 for s in src:
                     src[s].close()
 
+        logger.info("Prediction completed successfully")
         return str(outfile)
 
     def _save_model(self) -> None:
@@ -295,8 +339,17 @@ class Model:
         model_path = self.output_dir / 'model.pkl.gz'
         scaler_path = self.output_dir / 'scaler.pkl.gz'
 
-        joblib.dump(self.model, model_path)
-        joblib.dump(self.scaler, scaler_path)
+        try:
+            joblib.dump(self.model, model_path)
+            logger.debug(f"Model saved to: {model_path}")
+
+            joblib.dump(self.scaler, scaler_path)
+            logger.debug(f"Scaler saved to: {scaler_path}")
+
+            logger.info("Model and scaler saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to save model or scaler: {str(e)}")
+            raise
 
     def load_model(self,
                    model_path: str,
@@ -308,6 +361,19 @@ class Model:
             model_path: Path to saved model
             scaler_path: Path to saved scaler
         """
-        self.model = joblib.load(model_path)
-        self.scaler = joblib.load(scaler_path)
-        self.feature_names = self.scaler.get_feature_names_out()
+        logger.info("Loading saved model and scaler")
+
+        try:
+            logger.debug(f"Loading model from: {model_path}")
+            self.model = joblib.load(model_path)
+
+            logger.debug(f"Loading scaler from: {scaler_path}")
+            self.scaler = joblib.load(scaler_path)
+
+            self.feature_names = self.scaler.get_feature_names_out()
+            logger.debug(f"Loaded feature names: {self.feature_names.tolist()}")
+
+            logger.info("Model and scaler loaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to load model or scaler: {str(e)}")
+            raise
