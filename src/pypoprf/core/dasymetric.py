@@ -715,16 +715,6 @@ class DasymetricMapper:
                 # Multiply prediction by normalization factor and round to integers
                 population = np.round(pred_data * norm_data).astype('int32')
 
-                if self.settings.mask:
-                    with rasterio.open(self.settings.mask) as mask:
-                        mask_data = mask.read(1, window=window)
-                        population[mask_data == 1] = profile['nodata']
-
-                if self.settings.constrain:
-                    with rasterio.open(self.settings.constrain) as const:
-                        const_data = const.read(1, window=window)
-                        population[const_data == 0] = profile['nodata']
-
                 # Handle nodata
                 nodata_mask = (pred_data == pred.nodata) | (norm_data == profile['nodata'])
                 population[nodata_mask] = profile['nodata']
