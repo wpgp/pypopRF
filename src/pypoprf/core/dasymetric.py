@@ -306,7 +306,7 @@ class DasymetricMapper:
 
         # Calculate zonal statistics
         sum_prob = raster_stat(prediction_path,
-                               self.settings.mastergrid,
+                               self.settings.constrain,
                                by_block=self.settings.by_block,
                                max_workers=self.settings.max_workers,
                                block_size=self.settings.block_size)
