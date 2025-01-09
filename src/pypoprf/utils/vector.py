@@ -74,7 +74,7 @@ def rasterize(source: Union[str, gpd.GeoDataFrame],
               column: Optional[str] = None,
               dtype: str = 'int16',
               show_progress: bool = False,
-              blocksize: Tuple[int, int] = (256, 256),
+              block_size: Tuple[int, int] = (256, 256),
               edit_profile: Dict = {}) -> None:
     """
     Memory-optimized rasterization function
@@ -123,8 +123,8 @@ def rasterize(source: Union[str, gpd.GeoDataFrame],
                 'crs': gdf.crs,
                 'count': 1,
                 'transform': transform,
-                'blockxsize': blocksize[0],
-                'blockysize': blocksize[1],
+                'blockxsize': block_size[0],
+                'blockysize': block_size[1],
                 'tiled': True,
                 'compress': 'lzw',
                 'interleave': 'band'

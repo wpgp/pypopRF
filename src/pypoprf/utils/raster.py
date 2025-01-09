@@ -9,8 +9,10 @@ from rasterio.windows import Window
 from tqdm import tqdm
 import concurrent.futures
 
+from .logger import get_logger
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
 
+logger = get_logger()
 
 def progress_bar(iterable: Any,
                  show: bool,
@@ -54,13 +56,14 @@ def raster_compare(p1: Dict,
     required = []
     for p in ['crs', 'width', 'height']:
         if p1[p] != p2[p]:
-            print(f'rasters have different [{p}]')
-            print(f'required process: {process[p]}')
+            logger.info(f'Rasters have different [{p}]')
+            logger.info(f'Required process: {process[p]}')
             required.append(process[p])
 
     if p1['transform'][0] != p2['transform'][0]:
-        print('rasters have different resolutions')
-        print('required process: resampling')
+        logger.info('Rasters have different resolutions')
+        logger.info('Required process: resampling')
+
         required.append('resampling')
 
     return required
@@ -177,24 +180,24 @@ def aggregate_table(df: pd.DataFrame, prefix: str = '', min_count: int = 1) -> p
 
 
 def get_windows(src, 
-                blocksize: Optional[Tuple[int, int]] = (512, 512)
+                block_size: Optional[Tuple[int, int]] = (512, 512)
     ):
     """
     Get block/window tiles for reading/writing raster
 
     Args:
         src: rasterio.open
-        blocksize: tuple defining block/window size
+        block_size: tuple defining block/window size
 
     Returns:
         List of windows
 
     """
 
-    x0 = np.arange(0, src.width, blocksize[0])
-    y0 = np.arange(0, src.height, blocksize[1])
+    x0 = np.arange(0, src.width, block_size[0])
+    y0 = np.arange(0, src.height, block_size[1])
     grid = np.meshgrid(x0, y0)
-    windows = [rasterio.windows.Window(a, b, blocksize[0], blocksize[1])
+    windows = [rasterio.windows.Window(a, b, block_size[0], block_size[1])
                 for (a, b) in zip(grid[0].flatten(), grid[1].flatten())]
 
     return windows
@@ -206,8 +209,8 @@ def remask_layer(mastergrid: str,
                  outfile: Optional[str] = 'remasked_layer.tif',
                  by_block: bool = True,
                  max_workers: int = 4,
-                 blocksize: Optional[Tuple[int, int]] = None,
-                 show_progress: bool = True
+                 block_size: Optional[Tuple[int, int]] = None,
+                 show_progress: bool = False
     ):
 
     """
@@ -243,10 +246,7 @@ def remask_layer(mastergrid: str,
                     dst.write(m, 1, window=window)
 
             if by_block:
-                if blocksize is None:
-                    windows = [window for ij, window in tgt.block_windows()]
-                else:
-                    windows = get_windows(mst, blocksize)
+                windows = get_windows(mst, block_size if block_size else (512, 512))
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     progress_bar(executor.map(process, windows),
@@ -271,7 +271,7 @@ def raster_stat(infile: str,
                 mastergrid: str,
                 by_block: bool = True,
                 max_workers: int = 4,
-                blocksize: Optional[Tuple[int, int]] = None,
+                block_size: Optional[Tuple[int, int]] = None,
                 show_progress: bool = True) -> pd.DataFrame:
     """
     Calculate zonal statistics for a raster.
@@ -281,7 +281,7 @@ def raster_stat(infile: str,
         mastergrid: Mastergrid raster path
         by_block: Whether to process by blocks
         max_workers: Number of worker processes
-        blocksize: Size of processing blocks
+        block_size: Size of processing blocks
         show_progress: Whether to show progress bar
 
     Returns:
@@ -308,10 +308,7 @@ def raster_stat(infile: str,
                 return d
 
             if by_block:
-                if blocksize is None:
-                    windows = [window for ij, window in tgt.block_windows()]
-                else:
-                    windows = get_windows(mst, blocksize)
+                windows = get_windows(mst, block_size if block_size else (512, 512))
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                     df = list(progress_bar(executor.map(process, windows),
@@ -331,7 +328,8 @@ def raster_stat(infile: str,
 
     out_df = aggregate_table(res)
     duration = time.time() - t0
-    print(f'Raster statistics is finished in {duration:.2f} sec')
+    logger.info(f'Raster statistics is finished in {duration:.2f} sec')
+
 
     return out_df
 
@@ -341,7 +339,7 @@ def raster_stat_stack(infiles: Dict[str, str],
                       mastergrid: str,
                       by_block: bool = True,
                       max_workers: int = 4,
-                      blocksize: Optional[Tuple[int, int]] = None,
+                      block_size: Optional[Tuple[int, int]] = None,
                       show_progress: bool = True) -> pd.DataFrame:
     """
     Calculate zonal statistics for multiple rasters.
@@ -351,7 +349,7 @@ def raster_stat_stack(infiles: Dict[str, str],
         mastergrid: Master grid raster path
         by_block: Whether to process by blocks
         max_workers: Number of worker processes
-        blocksize: Size of processing blocks
+        block_size: Size of processing blocks
         show_progress: Whether to show progress bar
 
     Returns:
@@ -383,11 +381,7 @@ def raster_stat_stack(infiles: Dict[str, str],
                     return d
 
                 if by_block:
-                    if blocksize is None:
-                        # Use first raster to determine blocks
-                        windows = [window for ij, window in targets[0].block_windows()]
-                    else:
-                        windows = get_windows(mst, blocksize)
+                    windows = get_windows(mst, block_size if block_size else (512, 512))
 
                     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                         df = list(progress_bar(
@@ -421,6 +415,6 @@ def raster_stat_stack(infiles: Dict[str, str],
         raise RuntimeError(f"Error processing raster stack: {str(e)}")
 
     duration = time.time() - t0
-    print(f'Raster statistics is finished in {duration:.2f} sec')
+    logger.info(f'Raster statistics is finished in {duration:.2f} sec')
 
     return out_df

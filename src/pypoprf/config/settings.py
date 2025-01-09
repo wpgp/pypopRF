@@ -7,6 +7,9 @@ import pandas as pd
 import rasterio
 import yaml
 
+from pypoprf.utils.logger import get_logger
+
+logger = get_logger()
 
 class Settings:
     """
@@ -25,7 +28,7 @@ class Settings:
         census (dict): Census configuration including path and column names
         output_dir (Path): Output directory path
         by_block (bool): Whether to process by blocks
-        blocksize (tuple): Size of processing blocks (width, height)
+        block_size (tuple): Size of processing blocks (width, height)
         max_workers (int): Maximum number of parallel workers
         show_progress (bool): Whether to show progress bars
 
@@ -46,7 +49,9 @@ class Settings:
                  output_dir: Optional[str] = None,
                  block_size: Tuple[int, int] = (512, 512),
                  max_workers: int = 4,
-                 show_progress: bool = True):
+                 show_progress: bool = True,
+                 logging: Optional[Dict] = None):
+
         """
         Initialize Settings with configuration parameters.
 
@@ -68,6 +73,8 @@ class Settings:
         Raises:
             ValueError: If required parameters are missing or invalid
         """
+        logger.info("Initializing pypopRF settings")
+
         # Convert working directory to absolute path
         self.work_dir = Path(work_dir).resolve()
         self.data_dir = self.work_dir / data_dir
@@ -80,9 +87,15 @@ class Settings:
 
         # Handle (water) mask path
         self.mask = str(Path(mask)) if mask else None
+        if self.mask:
+            if not Path(self.mask).is_absolute():
+                self.mask = str(self.data_dir / mask)
 
-        # Handle (water) mask path
+        # Handle constrain path
         self.constrain = str(Path(constrain)) if constrain else None
+        if self.constrain:
+            if not Path(self.constrain).is_absolute():
+                self.constrain = str(self.data_dir / constrain)
 
         # Process covariate paths
         self.covariate = {}
@@ -113,12 +126,24 @@ class Settings:
 
         # Set processing parameters
         self.by_block = True
-        self.blocksize = tuple(block_size)
+        self.block_size = tuple(block_size)
         self.max_workers = max_workers
         self.show_progress = show_progress
 
+        self.logging = {
+            'level': 'INFO',
+            'file': 'pypoprf.log'
+        }
+        if logging:
+            self.logging.update(logging)
+
+        if self.logging['file']:
+            self.logging['file'] = str(self.output_dir / self.logging['file'])
+        logger.set_level(self.logging['level'])
+
         # Validate all settings
         self._validate_settings()
+        logger.info("Settings initialization completed")
 
     def _validate_settings(self) -> None:
         """
@@ -135,33 +160,47 @@ class Settings:
             FileNotFoundError: If required files don't exist
         """
 
+        logger.info("Validating settings...")
+
         if not self.census['path']:
+            logger.error("Census data path is required")
             raise ValueError("Census data path is required")
         if not self.census['pop_column']:
+            logger.error("Census population column name is required")
             raise ValueError("Census population column name is required")
         if not self.census['id_column']:
+            logger.error("Census ID column name is required")
             raise ValueError("Census ID column name is required")
         if not self.covariate:
+            logger.error("At least one covariate is required")
             raise ValueError("At least one covariate is required")
 
         template_profile = None
 
         if self.mastergrid != 'create':
             if not Path(self.mastergrid).is_file():
+                logger.error(f"Mastergrid file not found: {self.mastergrid}")
                 raise FileNotFoundError(f"Mastergrid file not found: {self.mastergrid}")
             with rasterio.open(self.mastergrid) as src:
                 template_profile = src.profile
+                logger.debug("Mastergrid template profile loaded")
 
-        if self.mask:
-            if not Path(self.mask).is_file():
+        if self.mask is not None:
+            mask_path = Path(self.mask)
+            if not mask_path.is_file():
+                logger.error(f"Mask file not found: {self.mask}")
                 raise FileNotFoundError(f"Mask file not found: {self.mask}")
 
-        if self.constrain:
-            if not Path(self.constrain).is_file():
-                raise FileNotFoundError(f"Constraining file not found: {self.constrain}")
+        if self.constrain is not None:
+            constrain_path = Path(self.constrain)
+            if not constrain_path.is_file():
+                logger.warning(f"Constraining file not found: {self.constrain}, proceeding without constrain")
+                self.constrain = None
 
+        logger.info("Validating covariates...")
         for name, path in self.covariate.items():
             if not Path(path).is_file():
+                logger.error(f"Covariate file not found: {path} ({name})")
                 raise FileNotFoundError(f"Covariate file not found: {path} ({name})")
 
             with rasterio.open(path) as src:
@@ -169,19 +208,22 @@ class Settings:
                     template_profile = src.profile
                 else:
                     if src.crs != template_profile['crs']:
-                        warnings.warn(f"Covariate {name}: CRS mismatch")
+                        logger.warning(f"Covariate {name}: CRS mismatch")
                     if src.transform[0] != template_profile['transform'][0]:
-                        warnings.warn(f"Covariate {name}: Resolution mismatch")
+                        logger.warning(f"Covariate {name}: Resolution mismatch")
                     if src.width != template_profile['width']:
-                        warnings.warn(f"Covariate {name}: Width mismatch")
+                        logger.warning(f"Covariate {name}: Width mismatch")
                     if src.height != template_profile['height']:
-                        warnings.warn(f"Covariate {name}: Height mismatch")
+                        logger.warning(f"Covariate {name}: Height mismatch")
 
+        logger.info("Validating census data...")
         census_path = Path(self.census['path'])
         if not census_path.is_file():
+            logger.error(f"Census file not found: {census_path}")
             raise FileNotFoundError(f"Census file not found: {census_path}")
 
         if census_path.suffix.lower() != '.csv':
+            logger.error("Census file must be CSV format")
             raise ValueError("Census file must be CSV format")
 
         try:
@@ -190,10 +232,14 @@ class Settings:
             for col in [self.census['pop_column'], self.census['id_column']]:
                 if col not in df.columns:
                     missing_cols.append(col)
-            if missing_cols:
-                raise ValueError(f"Missing required columns in census data: {', '.join(missing_cols)}")
+                if missing_cols:
+                    logger.error(f"Missing required columns in census data: {', '.join(missing_cols)}")
+                    raise ValueError(f"Missing required columns in census data: {', '.join(missing_cols)}")
         except Exception as e:
+            logger.error(f"Error reading census file: {str(e)}")
             raise ValueError(f"Error reading census file: {str(e)}")
+
+        logger.info("Settings validation completed successfully")
 
 
     @classmethod
@@ -208,6 +254,7 @@ class Settings:
             ValueError: If configuration file is missing required fields
                        or has invalid structure
         """
+        logger.info(f"Validating configuration file: {config_path}")
 
         required_fields = {
             'work_dir', 'covariates', 'census_data',
@@ -219,10 +266,14 @@ class Settings:
 
         missing = required_fields - set(config.keys())
         if missing:
+            logger.error(f"Missing required fields in config: {missing}")
             raise ValueError(f"Missing required fields in config: {missing}")
 
         if not isinstance(config.get('covariates', {}), dict):
+            logger.error("'covariates' must be a dictionary")
             raise ValueError("'covariates' must be a dictionary")
+
+        logger.info("Configuration file validation successful")
 
     @classmethod
     def from_file(cls, config_path: str) -> 'Settings':
@@ -238,6 +289,7 @@ class Settings:
         Raises:
             ValueError: If configuration file is invalid
         """
+        logger.info(f"Loading settings from file: {config_path}")
 
         cls.validate_config_file(config_path)
 
@@ -251,6 +303,7 @@ class Settings:
         elif not Path(config['work_dir']).is_absolute():
             config['work_dir'] = str(config_dir / config['work_dir'])
 
+        logger.info("Settings loaded successfully")
         return cls(**config)
 
     def __str__(self) -> str:
@@ -276,7 +329,7 @@ class Settings:
             f"    ID Column: {self.census['id_column']}\n"
             f"  Processing:\n"
             f"    By Block: {self.by_block}\n"
-            f"    Block Size: {self.blocksize}\n"
+            f"    Block Size: {self.block_size}\n"
             f"    Max Workers: {self.max_workers}\n"
             f"    Show Progress: {self.show_progress}"
         )
