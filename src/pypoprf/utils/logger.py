@@ -85,7 +85,6 @@ class PopRFLogger:
 
         log_level = level_map.get(level.upper(), logging.INFO)
         self.logger.setLevel(log_level)
-        logger.debug(f"Logging level set to: {level}")
 
     def set_output_stream(self, stream: TextIO) -> None:
         """
