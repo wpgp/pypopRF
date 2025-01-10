@@ -47,6 +47,7 @@ class Settings:
                  census_pop_column: Optional[str] = None,
                  census_id_column: Optional[str] = None,
                  output_dir: Optional[str] = None,
+                 by_block: bool = True,
                  block_size: Tuple[int, int] = (512, 512),
                  max_workers: int = 4,
                  show_progress: bool = True,
@@ -66,6 +67,7 @@ class Settings:
             census_pop_column: Name of population column in census data
             census_id_column: Name of ID column in census data
             output_dir: Directory for output files
+            by_block: Whether to process by blocks
             block_size: Tuple of (width, height) for processing blocks
             max_workers: Number of parallel processing workers
             show_progress: Whether to display progress bars
@@ -125,7 +127,7 @@ class Settings:
             self.output_dir = self.work_dir / 'output'
 
         # Set processing parameters
-        self.by_block = True
+        self.by_block = by_block
         self.block_size = tuple(block_size)
         self.max_workers = max_workers
         self.show_progress = show_progress

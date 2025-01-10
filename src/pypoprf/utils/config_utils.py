@@ -55,6 +55,7 @@ def create_config_template(output_path: Path,
         'census_pop_column': "pop",
         'census_id_column': "id",
         'output_dir': "output",
+        'by_block': True,
         'block_size': [512, 512],
         'max_workers': 8,
         'show_progress': True,
@@ -78,6 +79,7 @@ def create_config_template(output_path: Path,
 #   census_pop_column: Population column in census data
 #   census_id_column: ID column in census data
 #   output_dir: Directory for output files
+#   by_block: Whether to process data by block
 #   block_size: Processing block size [width, height]
 #   max_workers: Number of parallel workers
 #   show_progress: Whether to show progress bars
