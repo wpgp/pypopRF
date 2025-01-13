@@ -12,7 +12,8 @@ from rasterio.windows import Window
 from ..config.settings import Settings
 from ..utils.logger import get_logger
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
-from ..utils.raster import raster_stat, progress_bar
+from ..utils.raster import raster_stat
+from ..utils.raster_processing import parallel
 
 logger = get_logger()
 
@@ -379,156 +380,6 @@ class DasymetricMapper:
 
         return merged
 
-    # @with_non_interactive_matplotlib
-    # def _create_norm_raster(self,
-    #                         census_df: pd.DataFrame,
-    #                         mastergrid_path: str,
-    #                         output_path: str) -> None:
-    #     """Create normalized raster with diagnostics."""
-    #
-    #     with rasterio.open(mastergrid_path) as src:
-    #         data = src.read(1)
-    #         unique_ids = np.unique(data[data != src.nodata])
-    #         print(f"\nMastergrid ID analysis:")
-    #         print(f"Unique IDs in mastergrid: {len(unique_ids)}")
-    #         print(f"ID range: [{unique_ids.min()}, {unique_ids.max()}]")
-    #         print(f"Sample IDs: {unique_ids[:10]}")
-    #
-    #     print("\nChecking census data before rasterization:")
-    #     print(f"Unique IDs in census: {len(census_df['id'].unique())}")
-    #     print(f"Non-null norm values: {census_df['norm'].notna().sum()}")
-    #
-    #     # Create ID to norm mapping
-    #     norm_dict = census_df.set_index('id')['norm'].to_dict()
-    #     print("\nNormalization mapping:")
-    #     print(f"Number of mapping entries: {len(norm_dict)}")
-    #     print("Sample of norm values:")
-    #     sample_ids = list(norm_dict.keys())[:5]
-    #     for id_val in sample_ids:
-    #         print(f"ID {id_val}: {norm_dict[id_val]:.4f}")
-    #
-    #     print("\nChecking normalization dictionary:")
-    #     print("Norm values distribution:")
-    #     norm_values = np.array(list(norm_dict.values()))
-    #     print(pd.Series(norm_values).describe())
-    #
-    #     print("\nNorm dictionary analysis:")
-    #     print(f"ID range in dictionary: [{min(norm_dict.keys())}, {max(norm_dict.keys())}]")
-    #     print(f"Sample dictionary IDs: {sorted(list(norm_dict.keys()))[:10]}")
-    #
-    #     # Track statistics per window
-    #     window_stats = []
-    #
-    #     with rasterio.open(mastergrid_path) as src:
-    #         profile = src.profile.copy()
-    #         profile.update({
-    #             'dtype': 'float32',
-    #             'nodata': -99,
-    #             'blockxsize': self.settings.block_size[0],
-    #             'blockysize': self.settings.block_size[1]
-    #         })
-    #
-    #         def process_window(window):
-    #             with self._read_lock:
-    #                 mst_data = src.read(1, window=window)
-    #
-    #             # Initialize output array
-    #             norm_data = np.full_like(mst_data, profile['nodata'], dtype='float32')
-    #
-    #             # Get unique IDs and apply normalization
-    #             unique_ids = np.unique(mst_data)
-    #             unique_ids_no_nodata = unique_ids[unique_ids != src.nodata]
-    #
-    #             # Track window statistics
-    #             stats: WindowStats = {
-    #                 'window': window,
-    #                 'unique_ids_total': len(unique_ids),
-    #                 'unique_ids_valid': len(unique_ids_no_nodata),
-    #                 'sample_ids': unique_ids_no_nodata[:5].tolist() if len(unique_ids_no_nodata) > 0 else [],
-    #                 'nodata_count': 0,
-    #                 'not_in_dict_count': 0,
-    #                 'nan_norm_count': 0,
-    #                 'mapped_ids': 0,
-    #                 'invalid_ids': 0,
-    #                 'valid_pixels': 0,
-    #                 'min_value': None,
-    #                 'max_value': None
-    #             }
-    #
-    #             # Process each unique ID
-    #             for id_val in unique_ids:
-    #                 if id_val != src.nodata:
-    #                     if id_val in norm_dict:
-    #                         norm = norm_dict[id_val]
-    #                         if not np.isnan(norm):
-    #                             norm_data[mst_data == id_val] = norm
-    #                             stats['mapped_ids'] += 1
-    #                         else:
-    #                             stats['nan_norm_count'] += 1
-    #                             stats['invalid_ids'] += 1
-    #                     else:
-    #                         stats['not_in_dict_count'] += 1
-    #                         stats['invalid_ids'] += 1
-    #                 else:
-    #                     stats['nodata_count'] += 1
-    #                     stats['invalid_ids'] += 1
-    #
-    #             # Calculate statistics for valid data
-    #             valid_mask = norm_data != profile['nodata']
-    #             stats['valid_pixels'] = np.sum(valid_mask)
-    #             if stats['valid_pixels'] > 0:
-    #                 stats['min_value'] = float(np.min(norm_data[valid_mask]))
-    #                 stats['max_value'] = float(np.max(norm_data[valid_mask]))
-    #             else:
-    #                 stats['min_value'] = None
-    #                 stats['max_value'] = None
-    #
-    #             window_stats.append(stats)
-    #             return window, norm_data
-    #
-    #         print("\nCreating normalized raster...")
-    #         with rasterio.open(output_path, 'w', **profile) as dst:
-    #             if self.settings.by_block:
-    #                 windows = [window for ij, window in dst.block_windows()]
-    #
-    #                 with concurrent.futures.ThreadPoolExecutor(
-    #                         max_workers=self.settings.max_workers
-    #                 ) as executor:
-    #                     futures = [
-    #                         executor.submit(process_window, window)
-    #                         for window in windows
-    #                     ]
-    #
-    #                     for future in progress_bar(
-    #                             concurrent.futures.as_completed(futures),
-    #                             self.settings.show_progress,
-    #                             len(futures),
-    #                             desc="Creating normalized raster"
-    #                     ):
-    #                         window, norm_data = future.result()
-    #                         with self._write_lock:
-    #                             dst.write(norm_data, 1, window=window)
-    #
-    #         print("\nAggregated Window Processing Statistics:")
-    #         total_ids = sum(s['unique_ids_valid'] for s in window_stats)
-    #         total_mapped = sum(s['mapped_ids'] for s in window_stats)
-    #         total_invalid = sum(s['invalid_ids'] for s in window_stats)
-    #         total_nodata = sum(s['nodata_count'] for s in window_stats)
-    #         total_not_in_dict = sum(s['not_in_dict_count'] for s in window_stats)
-    #         total_nan_norm = sum(s['nan_norm_count'] for s in window_stats)
-    #
-    #         print(f"\nID Statistics:")
-    #         print(f"Total unique IDs found: {total_ids}")
-    #         print(f"Total mapped IDs: {total_mapped}")
-    #         print(f"Total invalid IDs: {total_invalid}")
-    #         print(f"- NoData values: {total_nodata}")
-    #         print(f"- IDs not in dictionary: {total_not_in_dict}")
-    #         print(f"- NaN norm values: {total_nan_norm}")
-    #
-    #         # Sample of IDs from first window
-    #         first_window_ids = window_stats[0]['sample_ids']
-    #         if first_window_ids:
-    #             print(f"\nSample IDs from first window: {first_window_ids}")
 
     def _process_window(self,
                         window: Window,
@@ -626,7 +477,7 @@ class DasymetricMapper:
         with rasterio.open(self.settings.mastergrid) as mst, \
                 rasterio.open(str(output_path), 'w', **profile) as dst:
 
-            def process_window(window):
+            def process(window):
                 # Read mastergrid data for window
                 with self._read_lock:
                     mst_data = mst.read(1, window=window)
@@ -643,27 +494,30 @@ class DasymetricMapper:
                         mask = mst_data == zone_id
                         output[mask] = norm_factor
                         valid_mappings += 1
-
-
                 # Write window
                 with self._write_lock:
                     dst.write(output[np.newaxis, :, :], window=window)
 
+                return valid_mappings
+
             if self.settings.by_block:
                 logger.info("Processing by blocks")
-                windows = [window for ij, window in dst.block_windows()]
-                with concurrent.futures.ThreadPoolExecutor(
-                        max_workers=self.settings.max_workers
-                ) as executor:
-                    list(progress_bar(
-                        executor.map(process_window, windows),
-                        self.settings.show_progress,
-                        len(windows),
-                        desc="Creating normalized raster"
-                    ))
+                block_windows = list(dst.block_windows())
+                windows = []
+                for block_window in block_windows:
+                    idx, window = block_window
+                    windows.append(window)
+
+                parallel(
+                    windows=windows,
+                    process_func=process,
+                    max_workers=self.settings.max_workers,
+                    show_progress=self.settings.show_progress,
+                    desc="Creating normalized raster"
+                )
             else:
                 logger.info("Processing entire raster at once")
-                process_window(rasterio.windows.Window(0, 0, mst.width, mst.height))
+                process(rasterio.windows.Window(0, 0, mst.width, mst.height))
 
         logger.info(f"Normalized census raster created successfully: {output_path}")
         return str(output_path)
@@ -704,7 +558,7 @@ class DasymetricMapper:
                 rasterio.open(norm_raster_path) as norm, \
                 rasterio.open(str(output_path), 'w', **profile) as dst:
 
-            def process_window(window):
+            def process(window):
                 # Read input data for window
                 with self._pred_read_lock:
                     pred_data = pred.read(1, window=window)
@@ -725,19 +579,22 @@ class DasymetricMapper:
 
             if self.settings.by_block:
                 logger.info("Processing by blocks")
-                windows = [window for ij, window in dst.block_windows()]
-                with concurrent.futures.ThreadPoolExecutor(
-                        max_workers=self.settings.max_workers
-                ) as executor:
-                    list(progress_bar(
-                        executor.map(process_window, windows),
-                        self.settings.show_progress,
-                        len(windows),
-                        desc="Creating dasymetric raster"
-                    ))
+                block_windows = list(dst.block_windows())
+                windows = []
+                for block_window in block_windows:
+                    idx, window = block_window
+                    windows.append(window)
+
+                parallel(
+                    windows=windows,
+                    process_func=process,
+                    max_workers=self.settings.max_workers,
+                    show_progress=self.settings.show_progress,
+                    desc="Creating normalized raster"
+                )
             else:
                 logger.info("Processing entire raster at once")
-                process_window(rasterio.windows.Window(0, 0, pred.width, pred.height))
+                process(rasterio.windows.Window(0, 0, pred.width, pred.height))
 
         logger.info(f"Dasymetric population raster created successfully: {output_path}")
         return str(output_path)

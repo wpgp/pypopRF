@@ -17,7 +17,7 @@ from ..config.settings import Settings
 from ..utils.joblib_manager import joblib_resources
 from ..utils.logger import get_logger
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
-from ..utils.raster import progress_bar
+from ..utils.raster_processing import progress_bar
 
 logger = get_logger()
 
@@ -155,13 +155,27 @@ class Model:
         logger.debug("Fitting initial model for feature importance")
         model = self.model.fit(X, y)
 
+        try:
+            from qgis.core import Qgis
+            IN_QGIS = True
+        except ImportError:
+            IN_QGIS = False
+
         logger.info("Calculating permutation importance")
-        result = permutation_importance(
-            model, X, y,
-            n_repeats=10,
-            n_jobs=2,
-            scoring='neg_root_mean_squared_error'
-        )
+        if IN_QGIS:
+            result = permutation_importance(
+                model, X, y,
+                n_repeats=10,
+                n_jobs=1,
+                scoring='neg_root_mean_squared_error'
+            )
+        else:
+            result = permutation_importance(
+                model, X, y,
+                n_repeats=10,
+                n_jobs=2,
+                scoring='neg_root_mean_squared_error'
+            )
 
         sorted_idx = result.importances_mean.argsort()
 
@@ -232,7 +246,8 @@ class Model:
             self.model, X_scaled, y,
             cv=cv,
             scoring=list(scoring.keys()),
-            return_train_score=True
+            return_train_score=True,
+            n_jobs=1
         )
 
         for k in ['neg_root_mean_squared_error', 'neg_mean_absolute_error']:
@@ -264,14 +279,39 @@ class Model:
             logger.error("Model not trained. Call train() first")
             raise RuntimeError("Model not trained. Call train() first.")
 
+        from concurrent.futures import ThreadPoolExecutor
+        default_executor = ThreadPoolExecutor
+
+        try:
+            from qgis.PyQt.QtCore import QThreadPool, QRunnable
+            class RasterWorker(QRunnable):
+                def __init__(self, window, process_func):
+                    super().__init__()
+                    self.window = window
+                    self.process_func = process_func
+                    self.result = None
+
+                def run(self):
+                    try:
+                        self.process_func(self.window)
+                    except Exception as e:
+                        logger.error(f"Error in RasterWorker: {str(e)}")
+                        import traceback
+                        logger.error(f"Traceback: {traceback.format_exc()}")
+
+            qgis_executor = QThreadPool.globalInstance()
+            IN_QGIS = True
+        except ImportError:
+            IN_QGIS = False
+
         with joblib_resources():
             logger.debug("Opening covariate rasters")
             src = {}
-            for k in self.settings.covariate:
-                src[k] = rasterio.open(self.settings.covariate[k], 'r')
-                logger.debug(f"Opened covariate: {k}")
-
             try:
+                for k in self.settings.covariate:
+                    src[k] = rasterio.open(self.settings.covariate[k], 'r')
+                    logger.debug(f"Opened covariate: {k}")
+
                 # Open mastergrid
                 logger.debug("Opening mastergrid")
                 mst = rasterio.open(self.settings.mastergrid, 'r')
@@ -288,7 +328,6 @@ class Model:
                 # Setup locks
                 reading_lock = threading.Lock()
                 writing_lock = threading.Lock()
-
                 names = self.feature_names
                 outfile = Path(self.settings.output_dir) / 'prediction.tif'
                 logger.info(f"Output will be saved to: {outfile}")
@@ -313,23 +352,63 @@ class Model:
 
                     if self.settings.by_block:
                         logger.info("Processing by blocks")
-                        windows = [window for ij, window in dst.block_windows()]
-                        with concurrent.futures.ThreadPoolExecutor(
-                                max_workers=self.settings.max_workers
-                        ) as executor:
-                            list(progress_bar(
-                                executor.map(process, windows),
-                                self.settings.show_progress,
-                                len(windows),
-                                desc="Prediction"
-                            ))
+                        try:
+                            logger.debug("Getting block windows...")
+                            block_windows = list(dst.block_windows())
+                            logger.debug(f"First block window type: {type(block_windows[0])}")
+                            logger.debug(f"First block window content: {block_windows[0]}")
+
+                            windows = []
+                            for block_window in block_windows:
+                                idx, window = block_window
+                                windows.append(window)
+
+                            if IN_QGIS:
+                                logger.debug(f"Number of workers to create: {len(windows)}")
+                                qgis_executor.setMaxThreadCount(self.settings.max_workers)
+                                workers = []
+
+                                for i, window in enumerate(windows):
+                                    try:
+                                        worker = RasterWorker(window, process)
+                                        workers.append(worker)
+                                        qgis_executor.start(worker)
+                                    except Exception as e:
+                                        import traceback
+                                        logger.error(f"Full traceback: {traceback.format_exc()}")
+                                        raise
+
+                                logger.debug("Waiting for workers to complete...")
+                                qgis_executor.waitForDone()
+                                logger.debug("All workers completed")
+
+                            else:
+                                with default_executor(max_workers=self.settings.max_workers) as executor:
+                                    list(progress_bar(
+                                        executor.map(process, windows),
+                                        self.settings.show_progress,
+                                        len(windows),
+                                        desc="Prediction"
+                                    ))
+
+                        except Exception as e:
+                            logger.error(f"Error in block processing setup: {str(e)}")
+                            import traceback
+                            logger.error(f"Full traceback: {traceback.format_exc()}")
+                            raise
+
 
             finally:
                 logger.debug("Closing mastergrid")
-                mst.close()
-                logger.debug("Closing covariate rasters")
                 for s in src:
-                    src[s].close()
+                    try:
+                        s.close()
+                    except Exception:
+                        pass
+                try:
+                    mst.close()
+                except Exception:
+                    pass
 
         logger.info("Prediction completed successfully")
         return str(outfile)

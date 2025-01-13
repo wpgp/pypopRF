@@ -334,4 +334,7 @@ class Settings:
             f"    Block Size: {self.block_size}\n"
             f"    Max Workers: {self.max_workers}\n"
             f"    Show Progress: {self.show_progress}"
+            f"  Logging:\n"
+            f"    Level: {self.logging['level']}\n"
+            f"    File: {self.logging['file']}"
         )
