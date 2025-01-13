@@ -3,37 +3,13 @@ import numpy as np
 import pandas as pd
 import rasterio
 import threading
-from typing import Dict, List, Tuple, Optional, Any
-
-from rasterio.windows import Window
-from tqdm import tqdm
-import concurrent.futures
+from typing import Dict, List, Tuple, Optional, Any, Callable
 
 from .logger import get_logger
+from .raster_processing import parallel
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
 
 logger = get_logger()
-
-def progress_bar(iterable: Any,
-                 show: bool,
-                 total: int,
-                 desc: str = "Processing") -> Any:
-    """
-    Create a progress bar for iteration.
-
-    Args:
-        iterable: Iterable object
-        show: Whether to show progress bar
-        total: Total number of items
-        desc: Description for progress bar
-
-    Returns:
-        Progress bar wrapped iterable
-    """
-    if show:
-        return tqdm(iterable, total=total, desc=desc)
-    return iterable
-
 
 def raster_compare(p1: Dict,
                    p2: Dict) -> List[str]:
@@ -247,12 +223,13 @@ def remask_layer(mastergrid: str,
 
             if by_block:
                 windows = get_windows(mst, block_size if block_size else (512, 512))
-
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    progress_bar(executor.map(process, windows),
-                                 show_progress,
-                                 len(windows),
-                                 desc="Remasking mastergrid")
+                parallel(
+                    windows=windows,
+                    process_func=process,
+                    max_workers=max_workers,
+                    show_progress=show_progress,
+                    desc="Remasking mastergrid"
+                )
 
             else:
                 m = mst.read(1)
@@ -310,11 +287,13 @@ def raster_stat(infile: str,
             if by_block:
                 windows = get_windows(mst, block_size if block_size else (512, 512))
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    df = list(progress_bar(executor.map(process, windows),
-                                           show_progress,
-                                           len(windows),
-                                           desc="Dasymetric raster statistics"))
+                df = parallel(
+                    windows=windows,
+                    process_func=process,
+                    max_workers=max_workers,
+                    show_progress=show_progress,
+                    desc="Dasymetric raster statistics"
+                )
 
                 res = pd.concat(df, ignore_index=True)
 
@@ -364,7 +343,6 @@ def raster_stat_stack(infiles: Dict[str, str],
 
     try:
         with rasterio.open(mastergrid, 'r') as mst:
-            # Open all target rasters using context manager
             targets = []
             try:
                 targets = [rasterio.open(path, 'r') for path in infiles.values()]
@@ -383,13 +361,13 @@ def raster_stat_stack(infiles: Dict[str, str],
                 if by_block:
                     windows = get_windows(mst, block_size if block_size else (512, 512))
 
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                        df = list(progress_bar(
-                            executor.map(process, windows),
-                            show_progress,
-                            len(windows),
-                            desc="Feature Extraction"
-                        ))
+                    df = parallel(
+                        windows=windows,
+                        process_func=process,
+                        max_workers=max_workers,
+                        show_progress=show_progress,
+                        desc="Feature Extraction"
+                    )
                 else:
                     m = mst.read(1)
                     df = [get_raster_stats(t.read(1), m, nodata=na, skip=skip)

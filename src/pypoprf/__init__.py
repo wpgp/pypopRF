@@ -71,7 +71,6 @@ This module provides helper functions for:
 """
 
 from pypoprf.utils.raster import (
-    progress_bar,
     raster_compare,
     raster_stat,
     raster_stat_stack,
@@ -87,7 +86,6 @@ from pypoprf.utils.matplotlib_utils import (
 
 __all__ = [
     # Raster utilities
-    "progress_bar",
     "raster_compare",
     "raster_stat",
     "raster_stat_stack",
