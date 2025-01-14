@@ -38,9 +38,15 @@ class PopRFLogger:
             }
 
             def format(self, record):
+                timestamp = self.formatTime(record, self.datefmt)
+                level = record.levelname
+                msg = record.getMessage()
+
                 color = self.COLORS.get(record.levelno, '#000000')
-                formatted = super().format(record)
-                return f'<span style="color: {color}">{formatted}</span>'
+                return (
+                    f'<span style="color: #666666">{timestamp}</span> - '
+                    f'<span style="color: {color}">{level} - {msg}</span>'
+                )
 
         return ColorFormatter(
             '%(asctime)s - %(levelname)s - %(message)s',
