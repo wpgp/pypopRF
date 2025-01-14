@@ -321,7 +321,10 @@ class DasymetricMapper:
             Distribution:
             {sum_prob['sum'].describe().to_string()}
             """
-        logger.info(stats_summary)
+        logger.debug(stats_summary)
+        logger.info(f"Number of zones found: {len(sum_prob)}")
+        logger.info(
+            f"Sample zones (top 5) - ID: {sum_prob['id'].head().tolist()}, Sum: {sum_prob['sum'].head().round(2).tolist()}")
 
         # Merge Results
         pre_merge_pop = census[pop_column].sum()
@@ -345,7 +348,9 @@ class DasymetricMapper:
             - Census zones: {len(unmatched_census)} {unmatched_census['id'].tolist()}
             - Statistics zones: {len(unmatched_stats)} {unmatched_stats['id'].tolist()}
             """
-        logger.info(merge_summary)
+        logger.debug(merge_summary)
+        logger.info(f"Initial total population: {pre_merge_pop:,.0f}")
+        logger.info(f"Census rows: {len(census)}, Statistics rows: {len(sum_prob)}, Merged rows: {len(merged)}")
 
         # Normalization Results
         valid = merged['sum'].values > 0
@@ -369,7 +374,9 @@ class DasymetricMapper:
             - After normalization: {total_pop_check:,.0f}
             - Difference: {abs(total_pop_check - pre_merge_pop):,} ({abs(total_pop_check - pre_merge_pop) / pre_merge_pop:.2%})
             """
-        logger.info(norm_summary)
+        logger.debug(norm_summary)
+        logger.info(f"Valid normalizations: {valid.sum()} of {len(merged)} zones")
+        logger.info(f"Zones with zero sums: {len(merged[merged['sum'] == 0])}")
 
         if abs(total_pop_check - pre_merge_pop) / pre_merge_pop > 0.01:  # 1% threshold
             logger.warning("Population difference after normalization exceeds 1%")
