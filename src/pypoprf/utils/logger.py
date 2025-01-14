@@ -3,167 +3,113 @@ import logging
 import sys
 from typing import Optional, TextIO
 from pathlib import Path
-from datetime import datetime
 from colorama import Fore, Style
 
 
 class PopRFLogger:
-    """
-    Centralized logging system for pypopRF.
+    """Logger for pypopRF with file and stream output support."""
 
-    This class provides logging functionality throughout the pypopRF package,
-    supporting both file output and custom output streams.
-    """
+    def __init__(self, name: str = 'pypopRF'):
+        # Initialize base logger
+        self.logger = logging.getLogger(name)
+        self.logger.handlers.clear()
+        self.logger.setLevel(logging.INFO)
+        self.logger.propagate = False
 
-    def __init__(self,
-                 log_file: Optional[str] = None,
-                 log_level: int = logging.INFO,
-                 output_stream: Optional[TextIO] = sys.stdout):
-        """
-        Initialize logger with optional file output.
+        # Initialize handlers
+        self.console_handler = None
+        self.file_handler = None
 
-        Args:
-            log_file: Optional path to log file
-            log_level: Logging level (default: INFO)
-            output_stream: Optional custom output stream (default: sys.stdout)
-        """
-        self.logger = logging.getLogger('pypopRF')
-        self.logger.setLevel(log_level)
+    def _get_formatter(self, colored: bool = False) -> logging.Formatter:
+        """Get message formatter."""
+        if not colored:
+            return logging.Formatter(
+                '%(asctime)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
 
-        formatter = logging.Formatter(
+        class ColorFormatter(logging.Formatter):
+            COLORS = {
+                logging.DEBUG: '#0000FF',  # Blue
+                logging.INFO: '#008000',  # Green
+                logging.WARNING: '#FFA500',  # Orange
+                logging.ERROR: '#FF0000',  # Red
+                logging.CRITICAL: '#8B0000'  # Dark Red
+            }
+
+            def format(self, record):
+                color = self.COLORS.get(record.levelno, '#000000')
+                formatted = super().format(record)
+                return f'<span style="color: {color}">{formatted}</span>'
+
+        return ColorFormatter(
             '%(asctime)s - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
 
-        if output_stream:
-            console_handler = logging.StreamHandler(output_stream)
-            color_formatter = self._get_color_formatter()
-            console_handler.setFormatter(color_formatter)
-            self.logger.addHandler(console_handler)
-
-        if log_file:
-            log_path = Path(log_file)
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
-
-        self.console_handler = console_handler if output_stream else None
-        self.file_handler = file_handler if log_file else None
-
-    def _get_color_formatter(self) -> logging.Formatter:
-        class ColorFormatter(logging.Formatter):
-            LEVEL_COLORS = {
-                logging.DEBUG: Fore.BLUE,
-                logging.INFO: Fore.GREEN,
-                logging.WARNING: Fore.YELLOW,
-                logging.ERROR: Fore.RED,
-                logging.CRITICAL: Fore.MAGENTA + Style.BRIGHT,
-            }
-
-            def format(self, record: logging.LogRecord) -> str:
-                color = self.LEVEL_COLORS.get(record.levelno, Fore.WHITE)
-                formatted_message = super().format(record)
-                return f"{color}{formatted_message}{Style.RESET_ALL}"
-
-        return ColorFormatter('%(asctime)s - %(levelname)s - %(message)s', '%Y-%m-%d %H:%M:%S')
-
     def set_level(self, level: str) -> None:
-        """
-        Set logging level.
-
-        Args:
-            level: Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
-        """
-        level_map = {
+        """Set logging level."""
+        levels = {
             'DEBUG': logging.DEBUG,
             'INFO': logging.INFO,
             'WARNING': logging.WARNING,
             'ERROR': logging.ERROR,
             'CRITICAL': logging.CRITICAL
         }
+        self.logger.setLevel(levels.get(level.upper(), logging.INFO))
 
-        log_level = level_map.get(level.upper(), logging.INFO)
-        self.logger.setLevel(log_level)
-
-    def set_output_stream(self, stream: TextIO) -> None:
-        """
-        Update or set output stream.
-
-        Args:
-            stream: New output stream
-        """
+    def set_output_stream(self, stream: TextIO = sys.stdout) -> None:
+        """Set stream output (console)."""
+        # Remove existing handler
         if self.console_handler:
             self.logger.removeHandler(self.console_handler)
 
-        console_handler = logging.StreamHandler(stream)
-        formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        console_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
-        self.console_handler = console_handler
+        # Create new handler
+        self.console_handler = logging.StreamHandler(stream)
+        self.console_handler.setFormatter(self._get_formatter(colored=True))
+        self.logger.addHandler(self.console_handler)
 
-    def set_log_file(self, log_file: str) -> None:
-        """
-        Add or update file handler.
-
-        Args:
-            log_file: Path to log file
-        """
+    def set_log_file(self, filepath: str) -> None:
+        """Set file output."""
+        # Remove existing handler
         if self.file_handler:
+            self.file_handler.close()
             self.logger.removeHandler(self.file_handler)
 
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create directory if needed
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
-        file_handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(file_handler)
-        self.file_handler = file_handler
+        # Create new handler
+        self.file_handler = logging.FileHandler(filepath, mode='w')
+        self.file_handler.setFormatter(self._get_formatter())
+        self.logger.addHandler(self.file_handler)
 
-    def info(self, message: str) -> None:
-        """Log info level message."""
-        self.logger.info(message)
+    def close(self) -> None:
+        """Close all handlers."""
+        if self.file_handler:
+            self.file_handler.close()
+            self.logger.removeHandler(self.file_handler)
+        if self.console_handler:
+            self.logger.removeHandler(self.console_handler)
 
-    def warning(self, message: str) -> None:
-        """Log warning level message."""
-        self.logger.warning(message)
+    def __del__(self):
+        """Cleanup on deletion."""
+        self.close()
 
-    def error(self, message: str) -> None:
-        """Log error level message."""
-        self.logger.error(message)
-
-    def debug(self, message: str) -> None:
-        """Log debug level message."""
-        self.logger.debug(message)
-
-    def critical(self, message: str) -> None:
-        """Log critical level message."""
-        self.logger.critical(message)
+    # Logging methods
+    def debug(self, msg: str): self.logger.debug(msg)
+    def info(self, msg: str): self.logger.info(msg)
+    def warning(self, msg: str): self.logger.warning(msg)
+    def error(self, msg: str): self.logger.error(msg)
+    def critical(self, msg: str): self.logger.critical(msg)
 
 
+# Global logger instance
 logger = PopRFLogger()
-
 
 def get_logger(log_file: Optional[str] = None,
                output_stream: Optional[TextIO] = None) -> PopRFLogger:
-    """
-    Get or create logger instance.
-
-    Args:
-        log_file: Optional path to log file
-        output_stream: Optional custom output stream
-
-    Returns:
-        PopRFLogger instance
-    """
-    global logger
+    """Get global logger instance."""
     if log_file:
         logger.set_log_file(log_file)
     if output_stream:
