@@ -57,26 +57,24 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
     # Re-mask mastergrid if requested
     if settings.mask:
         logger.info("Remasking mastergrid...")
-        outfile = settings.mask.replace('.tif', '_remasked.tif')
+        outfile = settings.mastergrid.replace('.tif', '_masked.tif')
         remask_layer(settings.mastergrid,
                      settings.mask,
                      1,
                      outfile=outfile,
                      block_size=settings.block_size)
-        settings.mask = outfile
+        settings.mastergrid = outfile
 
     # Constraining mastergrid if requested
     if settings.constrain:
         logger.info("Constraining mastergrid...")
-        outfile = settings.constrain.replace('.tif', '_constrained.tif')
+        outfile = settings.mastergrid.replace('.tif', '_constrained.tif')
         remask_layer(settings.mastergrid,
                      settings.constrain,
                      0,
                      outfile=outfile,
                      block_size=settings.block_size)
         settings.constrain = outfile
-    else:
-        settings.constrain = settings.mastergrid
 
     feature_extractor = FeatureExtractor(settings)
     model = Model(settings)

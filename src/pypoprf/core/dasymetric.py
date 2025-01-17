@@ -300,14 +300,20 @@ class DasymetricMapper:
                                  census: pd.DataFrame,
                                  prediction_path: str,
                                  id_column: str,
-                                 pop_column: str) -> pd.DataFrame:
+                                 pop_column: str,
+                                 constrained: bool = False) -> pd.DataFrame:
         """Calculate normalization factors with detailed diagnostics."""
 
         logger.info("Calculating normalization factors...")
 
+        if (constrained):
+            mastergrid = self.settings.constrain
+        else:
+            mastergrid = self.settings.mastergrid
+
         # Calculate zonal statistics
         sum_prob = raster_stat(prediction_path,
-                               self.settings.constrain,
+                               mastergrid,
                                by_block=self.settings.by_block,
                                max_workers=self.settings.max_workers,
                                block_size=self.settings.block_size)
@@ -532,13 +538,15 @@ class DasymetricMapper:
     @with_non_interactive_matplotlib
     def _create_dasymetric_raster(self,
                                   prediction_path: str,
-                                  norm_raster_path: str) -> str:
+                                  norm_raster_path: str,
+                                  constrained: bool = False) -> str:
         """
         Create final dasymetric population raster.
 
         Args:
             prediction_path: Path to prediction raster
             norm_raster_path: Path to normalization raster
+            constrained: Constrain the population
 
         Returns:
             Path to final dasymetric raster
@@ -546,7 +554,10 @@ class DasymetricMapper:
         logger.info("Creating final dasymetric population raster...")
 
         # Prepare output path
-        output_path = self.output_dir / 'dasymetric.tif'
+        if (constrained):
+            output_path = self.output_dir / 'dasymetric_constrained.tif'
+        else:
+            output_path = self.output_dir / 'dasymetric.tif'
         logger.debug(f"Output path set to: {output_path}")
 
         # Get profile from prediction raster
@@ -597,7 +608,7 @@ class DasymetricMapper:
                     process_func=process,
                     max_workers=self.settings.max_workers,
                     show_progress=self.settings.show_progress,
-                    desc="Creating normalized raster"
+                    desc="Performing dasymetric redistribution"
                 )
             else:
                 logger.info("Processing entire raster at once")
@@ -630,11 +641,13 @@ class DasymetricMapper:
         )
 
         # Calculate normalization factors
+        print('dasymetric-unconstrained')
         normalized_data = self._calculate_normalization(
             census,
             prediction_path,
             id_column,
-            pop_column
+            pop_column,
+            constrained=False
         )
 
         # Create normalized raster
@@ -645,6 +658,23 @@ class DasymetricMapper:
             prediction_path,
             norm_raster_path
         )
+
+        # If constraining layer is provided
+        if (self.settings.constrain):
+            print('dasymetric-constrained')
+            normalized_data_c = self._calculate_normalization(
+                census,
+                prediction_path,
+                id_column,
+                pop_column,
+                constrained=True
+            )
+            norm_raster_path_c = self._create_normalized_raster(normalized_data_c)
+            final_raster_path = self._create_dasymetric_raster(
+                prediction_path,
+                norm_raster_path_c, 
+                constrained=True
+            )
 
         duration = time.time() - t0
         logger.info(f'Dasymetric mapping completed in {duration:.2f} seconds')

@@ -173,19 +173,25 @@ def get_windows(src,
     x0 = np.arange(0, src.width, block_size[0])
     y0 = np.arange(0, src.height, block_size[1])
     grid = np.meshgrid(x0, y0)
-    windows = [rasterio.windows.Window(a, b, block_size[0], block_size[1])
-                for (a, b) in zip(grid[0].flatten(), grid[1].flatten())]
+    xg = grid[0].flatten()
+    yg = grid[1].flatten()
+    xs = np.zeros(grid[0].shape) + block_size[0]
+    ys = np.zeros(grid[1].shape) + block_size[1]
+    xs[:,-1] = src.width % block_size[0]
+    ys[-1,:] = src.height % block_size[1]
+    windows = [rasterio.windows.Window(a, b, c, d)
+                for (a,b,c,d) in zip(xg,yg,xs.flatten(),ys.flatten())]
 
     return windows
 
 
 def remask_layer(mastergrid: str,
                  mask: str,
-                 mask_value: int | float,
+                 mask_value: int,
                  outfile: Optional[str] = 'remasked_layer.tif',
                  by_block: bool = True,
                  max_workers: int = 4,
-                 block_size: Optional[Tuple[int, int]] = None,
+                 block_size: Optional[Tuple[int, int]] = (512,512),
                  show_progress: bool = False
     ):
 
@@ -205,42 +211,42 @@ def remask_layer(mastergrid: str,
         FileNotFoundError: If input files don't exist
         RuntimeError: If processing fails
     """
-    try:
-        with rasterio.open(mastergrid, 'r') as mst, rasterio.open(mask, 'r') as msk:
-            nodata = mst.nodata
-            dst = rasterio.open(outfile, 'w', **mst.profile)
-            reading_lock = threading.Lock()
-            writing_lock = threading.Lock()
+    with rasterio.open(mastergrid, 'r') as mst, rasterio.open(mask, 'r') as msk:
+        nodata = mst.nodata
+        dst = rasterio.open(outfile, 'w', **mst.profile)
+        reading_lock = threading.Lock()
+        writing_lock = threading.Lock()
 
-            def process(window):
-                with reading_lock:
-                    m = mst.read(window=window)
-                    n = msk.read(window=window)
+        def process(window):
+            with reading_lock:
+                m = mst.read(window=window)
+                n = msk.read(window=window)
 
-                m[n == mask_value] = nodata
-                with writing_lock:
-                    dst.write(m, 1, window=window)
+            m[n == mask_value] = nodata
+            with writing_lock:
+                #pass
+                dst.write(m, window=window)
 
-            if by_block:
-                windows = get_windows(mst, block_size if block_size else (512, 512))
-                parallel(
-                    windows=windows,
-                    process_func=process,
-                    max_workers=max_workers,
-                    show_progress=show_progress,
-                    desc="Remasking mastergrid"
-                )
+        if by_block:
+            windows = get_windows(mst, block_size if block_size else (512, 512))
+            parallel(
+                windows=windows,
+                process_func=process,
+                max_workers=max_workers,
+                show_progress=show_progress,
+                desc="Remasking mastergrid"
+            )
 
-            else:
-                m = mst.read(1)
-                n = msk.read(1)
-                m[n == mask_value] = nodata
-                dst.write(m, 1)
+        else:
+            m = mst.read()
+            n = msk.read()
+            m[n == mask_value] = nodata
+            dst.write(m)
 
-            dst.close()
+        dst.close()
         
-    except Exception as e:
-        raise RuntimeError(f"Error processing rasters: {str(e)}")
+    #except Exception as e:
+    #    raise RuntimeError(f"Error processing rasters: {str(e)}")
 
 
 @with_non_interactive_matplotlib
@@ -248,7 +254,7 @@ def raster_stat(infile: str,
                 mastergrid: str,
                 by_block: bool = True,
                 max_workers: int = 4,
-                block_size: Optional[Tuple[int, int]] = None,
+                block_size: Optional[Tuple[int, int]] = (512,512),
                 show_progress: bool = True) -> pd.DataFrame:
     """
     Calculate zonal statistics for a raster.
@@ -285,14 +291,14 @@ def raster_stat(infile: str,
                 return d
 
             if by_block:
-                windows = get_windows(mst, block_size if block_size else (512, 512))
+                windows = get_windows(mst, block_size)
 
                 df = parallel(
                     windows=windows,
                     process_func=process,
                     max_workers=max_workers,
                     show_progress=show_progress,
-                    desc="Dasymetric raster statistics"
+                    desc="Raster statistics"
                 )
 
                 res = pd.concat(df, ignore_index=True)
