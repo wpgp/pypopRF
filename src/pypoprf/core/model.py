@@ -18,6 +18,7 @@ from ..utils.joblib_manager import joblib_resources
 from ..utils.logger import get_logger
 from ..utils.matplotlib_utils import with_non_interactive_matplotlib
 from ..utils.raster_processing import progress_bar
+from concurrent.futures import ThreadPoolExecutor
 
 logger = get_logger()
 
@@ -154,28 +155,14 @@ class Model:
 
         logger.debug("Fitting initial model for feature importance")
         model = self.model.fit(X, y)
-
-        try:
-            from qgis.core import Qgis
-            IN_QGIS = True
-        except ImportError:
-            IN_QGIS = False
-
         logger.info("Calculating permutation importance")
-        if IN_QGIS:
-            result = permutation_importance(
-                model, X, y,
-                n_repeats=10,
-                n_jobs=1,
-                scoring='neg_root_mean_squared_error'
-            )
-        else:
-            result = permutation_importance(
-                model, X, y,
-                n_repeats=10,
-                n_jobs=2,
-                scoring='neg_root_mean_squared_error'
-            )
+
+        result = permutation_importance(
+            model, X, y,
+            n_repeats=10,
+            n_jobs=2,
+            scoring='neg_root_mean_squared_error'
+        )
 
         sorted_idx = result.importances_mean.argsort()
 
@@ -279,31 +266,6 @@ class Model:
             logger.error("Model not trained. Call train() first")
             raise RuntimeError("Model not trained. Call train() first.")
 
-        from concurrent.futures import ThreadPoolExecutor
-        default_executor = ThreadPoolExecutor
-
-        try:
-            from qgis.PyQt.QtCore import QThreadPool, QRunnable
-            class RasterWorker(QRunnable):
-                def __init__(self, window, process_func):
-                    super().__init__()
-                    self.window = window
-                    self.process_func = process_func
-                    self.result = None
-
-                def run(self):
-                    try:
-                        self.process_func(self.window)
-                    except Exception as e:
-                        logger.error(f"Error in RasterWorker: {str(e)}")
-                        import traceback
-                        logger.error(f"Traceback: {traceback.format_exc()}")
-
-            qgis_executor = QThreadPool.globalInstance()
-            IN_QGIS = True
-        except ImportError:
-            IN_QGIS = False
-
         with joblib_resources():
             logger.debug("Opening covariate rasters")
             src = {}
@@ -363,36 +325,26 @@ class Model:
                                 idx, window = block_window
                                 windows.append(window)
 
-                            if IN_QGIS:
-                                logger.debug(f"Number of workers to create: {len(windows)}")
-                                qgis_executor.setMaxThreadCount(self.settings.max_workers)
-                                workers = []
-
-                                for i, window in enumerate(windows):
-                                    try:
-                                        worker = RasterWorker(window, process)
-                                        workers.append(worker)
-                                        qgis_executor.start(worker)
-                                    except Exception as e:
-                                        import traceback
-                                        logger.error(f"Full traceback: {traceback.format_exc()}")
-                                        raise
-
-                                logger.debug("Waiting for workers to complete...")
-                                qgis_executor.waitForDone()
-                                logger.debug("All workers completed")
-
-                            else:
-                                with default_executor(max_workers=self.settings.max_workers) as executor:
-                                    list(progress_bar(
-                                        executor.map(process, windows),
-                                        self.settings.show_progress,
-                                        len(windows),
-                                        desc="Prediction"
-                                    ))
+                            with ThreadPoolExecutor(max_workers=self.settings.max_workers) as executor:
+                                list(progress_bar(
+                                    executor.map(process, windows),
+                                    self.settings.show_progress,
+                                    len(windows),
+                                    desc="Prediction"
+                                ))
 
                         except Exception as e:
                             logger.error(f"Error in block processing setup: {str(e)}")
+                            import traceback
+                            logger.error(f"Full traceback: {traceback.format_exc()}")
+                            raise
+                    else:
+                        logger.info("Processing entire raster at once")
+                        try:
+                            full_window = Window(0, 0, dst.width, dst.height)
+                            process(full_window)
+                        except Exception as e:
+                            logger.error(f"Error in full raster processing: {str(e)}")
                             import traceback
                             logger.error(f"Full traceback: {traceback.format_exc()}")
                             raise
@@ -400,15 +352,17 @@ class Model:
 
             finally:
                 logger.debug("Closing mastergrid")
-                for s in src:
+                for k in src:
                     try:
-                        s.close()
-                    except Exception:
-                        pass
-                try:
-                    mst.close()
-                except Exception:
-                    pass
+                        src[k].close()
+                    except Exception as e:
+                        logger.warning(f"Error closing source {k}: {str(e)}")
+
+                if mst is not None:
+                    try:
+                        mst.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing mastergrid: {str(e)}")
 
         logger.info("Prediction completed successfully")
         return str(outfile)

@@ -17,7 +17,9 @@ class PopRFLogger:
         self.logger.propagate = False
 
         # Initialize handlers
-        self.console_handler = None
+        self.console_handler = logging.StreamHandler(sys.stdout)
+        self.console_handler.setFormatter(self._get_formatter(colored=True))
+        self.logger.addHandler(self.console_handler)
         self.file_handler = None
 
     def _get_formatter(self, colored: bool = False) -> logging.Formatter:
@@ -30,11 +32,11 @@ class PopRFLogger:
 
         class ColorFormatter(logging.Formatter):
             COLORS = {
-                logging.DEBUG: '#0000FF',  # Blue
-                logging.INFO: '#008000',  # Green
-                logging.WARNING: '#FFA500',  # Orange
-                logging.ERROR: '#FF0000',  # Red
-                logging.CRITICAL: '#8B0000'  # Dark Red
+                logging.DEBUG: Fore.BLUE,
+                logging.INFO: Fore.GREEN,
+                logging.WARNING: Fore.YELLOW,
+                logging.ERROR: Fore.RED,
+                logging.CRITICAL: Fore.RED
             }
 
             def format(self, record):
@@ -42,10 +44,10 @@ class PopRFLogger:
                 level = record.levelname
                 msg = record.getMessage()
 
-                color = self.COLORS.get(record.levelno, '#000000')
+                color = self.COLORS.get(record.levelno, '')
                 return (
-                    f'<span style="color: #666666">{timestamp}</span> - '
-                    f'<span style="color: {color}">{level} - {msg}</span>'
+                    f'{Fore.LIGHTBLACK_EX}{timestamp}{Style.RESET_ALL} - '
+                    f'{color}{level} - {msg}{Style.RESET_ALL}'
                 )
 
         return ColorFormatter(

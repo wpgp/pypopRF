@@ -1,9 +1,13 @@
-from typing import Dict, List, Tuple, Optional, Any, Callable
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Any, Callable
+
+from rasterio.windows import Window
+from tqdm import tqdm
+
 from .logger import get_logger
 
-from tqdm import tqdm
-from rasterio.windows import Window
 logger = get_logger()
+
 
 def progress_bar(iterable: Any,
                  show: bool,
@@ -27,12 +31,12 @@ def progress_bar(iterable: Any,
 
 
 def parallel(windows: List[Window],
-                     process_func: Callable,
-                     max_workers: int,
-                     show_progress: bool = True,
-                     desc: str = "Processing") -> List[Any]:
+             process_func: Callable,
+             max_workers: int,
+             show_progress: bool = True,
+             desc: str = "Processing") -> List[Any]:
     """
-    Generic parallel processing function that handles both QGIS and non-QGIS environments.
+    Generic parallel processing function.
 
     Args:
         windows: List of windows to process
@@ -44,52 +48,15 @@ def parallel(windows: List[Window],
     Returns:
         List of results from processing each window
     """
-    try:
-        from qgis.PyQt.QtCore import QThreadPool, QRunnable
 
-        class RasterWorker(QRunnable):
-            def __init__(self, window, process_func):
-                super().__init__()
-                self.window = window
-                self.process_func = process_func
-                self.result = None
+    logger.debug(f"Processing {len(windows)} windows")
 
-            def run(self):
-                try:
-                    self.result = self.process_func(self.window)
-                except Exception as e:
-                    logger.error(f"Error in RasterWorker: {str(e)}")
-                    import traceback
-                    logger.error(f"Traceback: {traceback.format_exc()}")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(progress_bar(
+            executor.map(process_func, windows),
+            show_progress,
+            len(windows),
+            desc=desc
+        ))
 
-        qgis_executor = QThreadPool.globalInstance()
-        qgis_executor.setMaxThreadCount(max_workers)
-        workers = []
-
-        logger.debug(f"Processing {len(windows)} windows in QGIS environment")
-
-        for window in windows:
-            worker = RasterWorker(window, process_func)
-            workers.append(worker)
-            qgis_executor.start(worker)
-
-        qgis_executor.waitForDone()
-        results = [w.result for w in workers if w.result is not None]
-
-        return results
-
-    except ImportError:
-        # Non-QGIS environment
-        from concurrent.futures import ThreadPoolExecutor
-
-        logger.debug(f"Processing {len(windows)} windows in non-QGIS environment")
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = list(progress_bar(
-                executor.map(process_func, windows),
-                show_progress,
-                len(windows),
-                desc=desc
-            ))
-
-        return results
+    return results
