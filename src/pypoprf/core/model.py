@@ -6,8 +6,7 @@ from pathlib import Path
 import joblib
 import rasterio
 import threading
-import concurrent.futures
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, Optional
 from sklearn.preprocessing import RobustScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_validate
@@ -74,8 +73,6 @@ class Model:
             ValueError: If input data is invalid
             RuntimeError: If model loading fails
         """
-        logger.info("Starting model training process")
-
         data = data.dropna()
         drop_cols = np.intersect1d(data.columns.values, ['id', 'pop', 'dens'])
         X = data.drop(columns=drop_cols).copy()
@@ -143,11 +140,11 @@ class Model:
                          X: np.ndarray,
                          y: np.ndarray,
                          limit: float = 0.05,
-                         plot: bool = True) -> Tuple[pd.DataFrame, np.ndarray]:
+                         plot: bool = True,
+                         save: bool = True) -> Tuple[pd.DataFrame, np.ndarray]:
         """
         Select features based on importance using permutation importance.
         """
-        logger.info("Starting feature selection")
         logger.debug(f"Selection threshold: {limit}")
 
         names = self.feature_names
@@ -176,6 +173,11 @@ class Model:
         if plot:
             logger.debug("Creating feature importance plot")
             self._plot_feature_importance(importances, limit)
+
+        if save:
+            save_path = Path(self.settings.work_dir) / 'output' / 'feature_importance.csv'
+            importances.to_csv(save_path, index=False)
+            logger.info(f"Feature importance table saved to: {save_path}")
 
         logger.info(f"Selected {len(selected)} features out of {len(names)} features")
         logger.debug(f"Selected features: {selected.tolist()}")

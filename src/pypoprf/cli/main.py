@@ -1,5 +1,6 @@
 # src/pypoprf/cli/main.py
 import click
+import joblib
 from pypoprf import __version__
 from pathlib import Path
 
@@ -33,13 +34,20 @@ def cli(ctx):
               type=click.Path(exists=True),
               required=True,
               help='Path to configuration file')
+@click.option('-m', '--model', 'model_pickle',
+              type=click.Path(exists=True),
+              help='Path to model pickle')
 @click.option('-v', '--verbose',
               is_flag=True,
               help='Show detailed information')
 @click.option('--no-viz',
               is_flag=True,
               help='Skip visualization')
-def run(config_file: str, verbose: bool, no_viz: bool) -> None:
+
+def run(config_file: str, 
+        model_pickle: str,
+        verbose: bool, 
+        no_viz: bool) -> None:
     """Run the complete population modeling workflow."""
     logger.info(f"Starting population modeling workflow with config: {config_file}")
 
@@ -77,7 +85,6 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
         settings.constrain = outfile
 
     feature_extractor = FeatureExtractor(settings)
-    model = Model(settings)
     mapper = DasymetricMapper(settings)
 
     # Run workflow
@@ -85,10 +92,13 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
     features = feature_extractor.extract()
 
     logger.info("Starting model training...")
-    model.train(features)
-
-    logger.info("Making predictions...")
-    predictions = model.predict()
+    if model_pickle:
+        logger.info('To do')
+    else:
+        model = Model(settings)
+        model.train(features)
+        logger.info("Making predictions...")
+        predictions = model.predict()
 
     logger.info("Performing dasymetric mapping...")
     mapper.map(predictions)
@@ -138,6 +148,75 @@ def run(config_file: str, verbose: bool, no_viz: bool) -> None:
         click.echo(traceback.format_exc(), err=True)
     raise click.Abort()
 
+@cli.command()
+@click.option('-c', '--config', 'config_file',
+            type=click.Path(exists=True),
+            required=True,
+            help='Path to configuration file')
+@click.option('-p', '--prediction', 'prediction',
+            type=click.Path(exists=True),
+            required=True,
+            help='Path to prediction layer')
+@click.option('-t', '--table', 'table',
+            type=click.Path(exists=True),
+            required=True,
+            help='Path to age-sex structure table')
+@click.option('-v', '--verbose',
+              is_flag=True,
+              help='Show detailed information')
+
+def agesex(config_file: str, 
+           prediction: str, 
+           table:str, 
+           verbose:bool) -> None:
+    """Dasymetric redistribution of data with age-sex structure."""
+
+    logger.info(f"Starting age-sex redistribution with config: {config_file}")
+
+    settings = Settings.from_file(config_file)
+    logger.debug(f"Settings: {str(settings)}")
+
+    if verbose:
+        logger.set_level('DEBUG')
+
+    # Create output directory if it doesn't exist
+    output_dir = Path(settings.work_dir) / 'output'
+    output_dir.mkdir(exist_ok=True)
+    logger.info(f"Output directory created: {output_dir}")
+
+    # Re-mask mastergrid if requested
+    if settings.mask:
+        logger.info("Remasking mastergrid...")
+        outfile = settings.mastergrid.replace('.tif', '_masked.tif')
+        settings.mastergrid = outfile
+        if not Path(outfile).is_file():
+            remask_layer(settings.mastergrid,
+                         settings.mask,
+                         1,
+                         outfile=outfile,
+                         block_size=settings.block_size)                
+
+    # Constraining mastergrid if requested
+    if settings.constrain:
+        logger.info("Constraining mastergrid...")
+        outfile = settings.mastergrid.replace('.tif', '_constrained.tif')
+        settings.constrain = outfile
+        if not Path(outfile).is_file():
+            remask_layer(settings.mastergrid,
+                        settings.constrain,
+                        0,
+                        outfile=outfile,
+                        block_size=settings.block_size)
+            
+    mapper = DasymetricMapper(settings)
+    mapper.map_agesex(prediction, table)
+
+    logger.info("Age-sex redistribution completed successfully!")
+
+    if verbose:
+        import traceback
+        click.echo(traceback.format_exc(), err=True)
+    raise click.Abort()
 
 @cli.command()
 @click.argument('project_dir', type=click.Path())

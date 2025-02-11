@@ -45,6 +45,8 @@ Edit config.yaml to match your data:
      srf: "buildingSurface.tif"
      vol: "buildingVolume.tif"
    mastergrid: "mastergrid.tif"
+   mask: 
+   constrain: 
    census_data: "census.csv"
 
    # Census data columns
@@ -72,17 +74,35 @@ Skip visualization:
 
    pypoprf run -c my_project/config.yaml --no-viz
 
+With age-sex disaggregation:
+
+.. code-block:: bash
+
+   pypoprf run -c my_project/config.yaml
+   pypoprf agesex -c my_project/config.yaml -p my_project/output/prediction.tif -t my_project/data/test_admin3_agesex.csv
+
+
 Output Files
 -----------
 
 The analysis creates several output files in the output directory:
 
 - features.csv: Extracted features for model training
+- feature_importance.csv: A table containing decrease in nRMSE from multiple runs
+- scaler.pkl.gz: Fitted scaler
 - model.pkl.gz: Trained Random Forest model
 - prediction.tif: Raw population probability surface
-- normalized_census.tif: Normalized census populations
+- normalized_census.tif: Normalized census population
 - dasymetric.tif: Final high-resolution population distribution
 - visualization.png: Multi-panel visualization of results
+
+If `constrain` (constraining layer) is provided, then the following files are produced as well:
+- normalized_census_constrained.tif: Normalized census populations (constrained)
+- dasymetric_constrained.tif: Final high-resolution population distribution (constrained)
+
+Age-sex disaggregation work flow produces additional outputs with suffix associated with the age-sex column name. For instance,
+- normalized_census_m_00.tif: Normalized census populations (male infant less than 1 year old)
+- dasymetric_m_00.tif: Final high-resolution population distribution (male infant less than 1 year old)
 
 Common Issues
 ------------

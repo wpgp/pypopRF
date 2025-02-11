@@ -234,6 +234,45 @@ class DasymetricMapper:
 
         logger.info("Input validation completed successfully")
 
+    def _validate_agesex(census: pd.DataFrame,
+                         id_column: str) -> Tuple[pd.DataFrame, str, str]:
+        """
+        Validate census data and extract column names.
+
+        Args:
+            census: Census DataFrame with population data
+            id_column: Column name containing region IDs
+
+        Returns:
+            Tuple containing:
+            - Validated census DataFrame
+            - ID column name
+            - Population column name
+
+        Raises:
+            ValueError: If required columns are not found
+        """
+        logger.info("Validating census data with age-sex structure")
+
+        # Get column names from DataFrame
+        cols = census.columns.values
+        logger.debug(f"Available columns: {cols.tolist()}")
+
+        # Get column names from kwargs with defaults
+        pop_columns = [c for c in cols if c[0] in ['f','F','m','M']]
+        #logger.debug(f"Using columns: id={id_column}, population={pop_column}")
+
+        # Validate required columns exist
+        missing_cols = []
+        if id_column not in cols:
+            missing_cols.append(f'ID column "{id_column}"')
+            error_msg = f"Missing required columns in census data: {', '.join(missing_cols)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info("Census data validation completed successfully")
+        return census, id_column, pop_columns
+    
     def _load_census(self,
                      census_path: str,
                      **kwargs) -> Tuple[pd.DataFrame, str, str]:
@@ -294,6 +333,53 @@ class DasymetricMapper:
         logger.info(f"- Using columns: id={id_column}, population={pop_column}")
 
         return census, id_column, pop_column
+
+    def _load_agesex(self,
+                     census_path: str, 
+                     id_column: str) -> Tuple[pd.DataFrame, str, str]:
+        """
+        Load and validate census data with age-sex structure.
+
+        Args:
+            census_path: Path to census data file
+            id_column: Column name containing region IDs
+
+        Returns:
+            Tuple containing:
+            - Processed census DataFrame
+            - ID column name
+            - Population column name
+
+        Raises:
+            ValueError: If census data is invalid or cannot be loaded
+        """
+        logger.info("Loading census data with age-sex structure")
+
+        # Load census data based on file extension
+        file_ext = Path(census_path).suffix.lower()
+        try:
+            if file_ext == '.csv':
+                logger.debug(f"Loading CSV file: {census_path}")
+                census = pd.read_csv(census_path)
+                cols = census.columns.values
+                pop_columns = [c for c in cols if c[0] in ['f','F','m','M']]
+
+            else:
+                error_msg = f"Unsupported census file format: {file_ext}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+        except Exception as e:
+            error_msg = f"Failed to load census data: {str(e)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"Census data loaded: {len(census)} rows")
+        
+        # Basic data quality checks
+        logger.info("Census data summary:")
+        logger.info(f"- Number of zones: {len(census)}")
+
+        return census, id_column, pop_columns
 
     @with_non_interactive_matplotlib
     def _calculate_normalization(self,
@@ -393,10 +479,11 @@ class DasymetricMapper:
 
         return merged
 
-
     @with_non_interactive_matplotlib
     def _create_normalized_raster(self,
-                                  normalized_data: pd.DataFrame, constrained: bool) -> str:
+                                  normalized_data: pd.DataFrame, 
+                                  constrained: bool, 
+                                  suffix: str = '') -> str:
         """
         Create raster of normalization factors.
 
@@ -410,13 +497,19 @@ class DasymetricMapper:
 
         # Prepare output path
         if constrained:
-            output_path = self.output_dir / 'constrained_normalized_census.tif'
+            mastergrid = self.settings.constrain
+            output_path = self.output_dir / 'normalized_census_constrained.tif'
         else:
+            mastergrid = self.settings.mastergrid
             output_path = self.output_dir / 'normalized_census.tif'
+
+        if suffix != '':
+            #output_path = output_path.replace('.tif', f'_{suffix}.tif')
+            output_path = Path(str(output_path).replace('.tif', f'_{suffix}.tif'))
         logger.debug(f"Output path set to: {output_path}")
 
         # Get profile from mastergrid
-        with rasterio.open(self.settings.mastergrid) as src:
+        with rasterio.open(mastergrid) as src:
             profile = src.profile.copy()
             profile.update({
                 'dtype': 'float32',
@@ -427,7 +520,7 @@ class DasymetricMapper:
             logger.debug("Raster profile created from mastergrid")
 
         # Create normalized raster
-        with rasterio.open(self.settings.mastergrid) as mst, \
+        with rasterio.open(mastergrid) as mst, \
                 rasterio.open(str(output_path), 'w', **profile) as dst:
 
             def process(window):
@@ -436,7 +529,7 @@ class DasymetricMapper:
                     mst_data = mst.read(1, window=window)
 
                 # Create output array
-                output = np.full_like(mst_data, profile['nodata'], dtype='float32')
+                output = np.full_like(mst_data, profile['nodata'], dtype=profile['dtype'])
 
                 # Map normalization factors to zones
                 valid_mappings = 0
@@ -447,6 +540,7 @@ class DasymetricMapper:
                         mask = mst_data == zone_id
                         output[mask] = norm_factor
                         valid_mappings += 1
+
                 # Write window
                 with self._write_lock:
                     dst.write(output[np.newaxis, :, :], window=window)
@@ -479,7 +573,8 @@ class DasymetricMapper:
     def _create_dasymetric_raster(self,
                                   prediction_path: str,
                                   norm_raster_path: str,
-                                  constrained: bool = False) -> str:
+                                  constrained: bool, 
+                                  suffix: str = '') -> str:
         """
         Create final dasymetric population raster.
 
@@ -498,13 +593,17 @@ class DasymetricMapper:
             output_path = self.output_dir / 'dasymetric_constrained.tif'
         else:
             output_path = self.output_dir / 'dasymetric.tif'
+        if suffix:
+            output_path = Path(str(output_path).replace('.tif', f'_{suffix}.tif'))
+            #output_path = output_path.replace('.tif', f'_{suffix}.tif')
+
         logger.debug(f"Output path set to: {output_path}")
 
         # Get profile from prediction raster
         with rasterio.open(prediction_path) as src:
             profile = src.profile.copy()
             profile.update({
-                'dtype': 'int32',  # Population counts should be integers
+                'dtype': 'float32',  # Population counts should be integers
                 'nodata': -99,
                 'blockxsize': self.settings.block_size[0],
                 'blockysize': self.settings.block_size[1],
@@ -524,8 +623,9 @@ class DasymetricMapper:
                     norm_data = norm.read(1, window=window)
 
                 # Calculate population
-                # Multiply prediction by normalization factor and round to integers
-                population = np.round(pred_data * norm_data).astype('int32')
+                # Multiply prediction by normalization factor
+                #population = np.round(pred_data * norm_data).astype('int32')
+                population = pred_data * norm_data
 
                 # Handle nodata
                 nodata_mask = (pred_data == pred.nodata) | (norm_data == profile['nodata'])
@@ -581,7 +681,6 @@ class DasymetricMapper:
         )
 
         # Calculate normalization factors
-        print('dasymetric-unconstrained')
         normalized_data = self._calculate_normalization(
             census,
             prediction_path,
@@ -591,17 +690,20 @@ class DasymetricMapper:
         )
 
         # Create normalized raster
-        norm_raster_path = self._create_normalized_raster(normalized_data, constrained=False)
+        norm_raster_path = self._create_normalized_raster(
+            normalized_data, 
+            constrained=False
+        )
 
         # Create final dasymetric raster
         final_raster_path = self._create_dasymetric_raster(
             prediction_path,
-            norm_raster_path
+            norm_raster_path, 
+            constrained=False
         )
 
         # If constraining layer is provided
         if (self.settings.constrain):
-            print('dasymetric-constrained')
             normalized_data_c = self._calculate_normalization(
                 census,
                 prediction_path,
@@ -609,12 +711,103 @@ class DasymetricMapper:
                 pop_column,
                 constrained=True
             )
-            norm_raster_path_c = self._create_normalized_raster(normalized_data_c, constrained=True)
+            norm_raster_path_c = self._create_normalized_raster(
+                normalized_data_c, 
+                constrained=True
+            )
             final_raster_path = self._create_dasymetric_raster(
                 prediction_path,
                 norm_raster_path_c, 
                 constrained=True
             )
+
+        duration = time.time() - t0
+        logger.info(f'Dasymetric mapping completed in {duration:.2f} seconds')
+        logger.info(f'Output saved to: {final_raster_path}')
+
+        return final_raster_path
+
+    def map_agesex(self,
+            prediction_path: str,
+            agesex_path: str) -> str:
+        """
+        Perform dasymetric mapping using prediction raster and data with age-sex structure.
+
+        Args:
+            prediction_path: Path to prediction raster from model
+            agesex_path: Path to census data with age-sex structure
+
+        Returns:
+            Path to final dasymetric population raster
+        """
+
+        t0 = time.time()
+
+        # Load and validate inputs
+        self._validate_inputs(prediction_path, self.settings.mastergrid, self.settings.constrain)
+        
+        # Load census data
+        census, id_column, pop_columns = self._load_agesex(agesex_path, self.settings.census['id_column'])
+        norm = census[[id_column]].copy()
+        norm['one'] = 1
+        
+        # Perform zonal statistics to get normalization factor
+        normalized_data = self._calculate_normalization(
+            norm,
+            prediction_path,
+            id_column,
+            'one',
+            constrained=False
+        )
+
+        for pop_column in pop_columns:
+            normalized = normalized_data.copy()
+            normalized['norm'] *= census[pop_column].values
+
+            # Create normalized raster
+            norm_raster_path = self._create_normalized_raster(
+                normalized, 
+                constrained=False, 
+                suffix=pop_column
+            )
+
+            # Create final dasymetric raster
+            final_raster_path = self._create_dasymetric_raster(
+                prediction_path,
+                norm_raster_path, 
+                constrained=False,
+                suffix=pop_column
+            )
+
+        # If constraining layer is provided
+        print('Check', self.settings.constrain)
+        if (self.settings.constrain):
+            normalized_data_c = self._calculate_normalization(
+                norm,
+                prediction_path,
+                id_column,
+                'one',
+                constrained=True
+            )
+
+            for pop_column in pop_columns:
+                normalized = normalized_data_c.copy()
+                normalized['norm'] *= census[pop_column].values
+
+                # Create normalized raster
+                norm_raster_path = self._create_normalized_raster(
+                    normalized, 
+                    constrained=True, 
+                    suffix=pop_column
+                )
+
+                # Create final dasymetric raster
+                final_raster_path = self._create_dasymetric_raster(
+                    prediction_path,
+                    norm_raster_path, 
+                    constrained=True,
+                    suffix=pop_column
+                )
 
         duration = time.time() - t0
         logger.info(f'Dasymetric mapping completed in {duration:.2f} seconds')
