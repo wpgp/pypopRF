@@ -97,10 +97,12 @@ The analysis creates several output files in the output directory:
 - visualization.png: Multi-panel visualization of results
 
 If `constrain` (constraining layer) is provided, then the following files are produced as well:
+
 - normalized_census_constrained.tif: Normalized census populations (constrained)
 - dasymetric_constrained.tif: Final high-resolution population distribution (constrained)
 
 Age-sex disaggregation work flow produces additional outputs with suffix associated with the age-sex column name. For instance,
+
 - normalized_census_m_00.tif: Normalized census populations (male infant less than 1 year old)
 - dasymetric_m_00.tif: Final high-resolution population distribution (male infant less than 1 year old)
 
