@@ -1,6 +1,6 @@
 # src/pypoprf/cli/main.py
 import click
-import joblib
+import pandas as pd
 from pypoprf import __version__
 from pathlib import Path
 
@@ -28,13 +28,12 @@ def cli(ctx):
     """
     ctx.ensure_object(dict)
 
-
 @cli.command()
 @click.option('-c', '--config', 'config_file',
               type=click.Path(exists=True),
               required=True,
               help='Path to configuration file')
-@click.option('-m', '--model', 'model_pickle',
+@click.option('-m', '--model', 'model_path',
               type=click.Path(exists=True),
               help='Path to model pickle')
 @click.option('-v', '--verbose',
@@ -45,9 +44,9 @@ def cli(ctx):
               help='Skip visualization')
 
 def run(config_file: str, 
-        model_pickle: str,
         verbose: bool, 
-        no_viz: bool) -> None:
+        no_viz: bool,
+        model_path: str) -> None:
     """Run the complete population modeling workflow."""
     logger.info(f"Starting population modeling workflow with config: {config_file}")
 
@@ -85,20 +84,26 @@ def run(config_file: str,
         settings.constrain = outfile
 
     feature_extractor = FeatureExtractor(settings)
-    mapper = DasymetricMapper(settings)
-
     # Run workflow
-    logger.info("Starting feature extraction...")
-    features = feature_extractor.extract()
-
-    logger.info("Starting model training...")
-    if model_pickle:
-        logger.info('To do')
-    else:
+    if model_path:
+        logger.info('Loading pre-trained model')
+        features = feature_extractor.get_dummy()
         model = Model(settings)
-        model.train(features)
-        logger.info("Making predictions...")
-        predictions = model.predict()
+        model.train(features, 
+                    model_path=model_path, 
+                    scaler_path=model_path.replace('model','scaler'),
+                    log_scale=settings.log_scale,
+                    save_model=False)
+    else:
+        logger.info("Starting feature extraction...")
+        features = feature_extractor.extract()
+        model = Model(settings)
+        model.train(features, log_scale=settings.log_scale)
+
+    logger.info("Making predictions...")
+    predictions = model.predict(log_scale=settings.log_scale)
+
+    mapper = DasymetricMapper(settings)
 
     logger.info("Performing dasymetric mapping...")
     mapper.map(predictions)

@@ -54,6 +54,7 @@ def create_config_template(output_path: Path,
         'census_data': f"{prefix}admin3.csv",
         'census_pop_column': "pop",
         'census_id_column': "id",
+        'log_scale': True,
         'output_dir': "output",
         'by_block': True,
         'block_size': [512, 512],
@@ -78,6 +79,7 @@ def create_config_template(output_path: Path,
 #   census_data: Path to census data file
 #   census_pop_column: Population column in census data
 #   census_id_column: ID column in census data
+#   log_scale: whether to train model on log(dens)
 #   output_dir: Directory for output files
 #   by_block: Whether to process data by block
 #   block_size: Processing block size [width, height]

@@ -767,8 +767,7 @@ class DasymetricMapper:
             # Create normalized raster
             norm_raster_path = self._create_normalized_raster(
                 normalized, 
-                constrained=False, 
-                suffix=pop_column
+                constrained=False
             )
 
             # Create final dasymetric raster
@@ -797,8 +796,7 @@ class DasymetricMapper:
                 # Create normalized raster
                 norm_raster_path = self._create_normalized_raster(
                     normalized, 
-                    constrained=True, 
-                    suffix=pop_column
+                    constrained=True
                 )
 
                 # Create final dasymetric raster

@@ -58,6 +58,7 @@ class Model:
               data: pd.DataFrame,
               model_path: Optional[str] = None,
               scaler_path: Optional[str] = None,
+              log_scale: bool = True,
               save_model: bool = True) -> None:
         """
         Train Random Forest model for population prediction.
@@ -67,6 +68,7 @@ class Model:
                  Must include 'id', 'pop', 'dens' columns
             model_path: Optional path to load pretrained model
             scaler_path: Optional path to load fitted scaler
+            log_scale: Whether to train the model with log(dens)
             save_model: Whether to save model after training
 
         Raises:
@@ -77,6 +79,8 @@ class Model:
         drop_cols = np.intersect1d(data.columns.values, ['id', 'pop', 'dens'])
         X = data.drop(columns=drop_cols).copy()
         y = data['dens'].values
+        if log_scale:
+            y = np.log(y + 0.1)
         self.target_mean = y.mean()
         self.feature_names = X.columns.values
 
@@ -115,6 +119,11 @@ class Model:
             logger.info("Fitting Random Forest model")
             self.model.fit(X_scaled, y)
             logger.debug("Model fitting completed")
+
+            with joblib_resources():
+                logger.info("Calculating cross-validation scores")
+                self._calculate_cv_scores(X_scaled, y)
+
         else:
             logger.info(f"Loading model from: {model_path}")
             with joblib_resources():
@@ -124,10 +133,6 @@ class Model:
                 except Exception as e:
                     logger.error(f"Failed to load model: {str(e)}")
                     raise
-
-        with joblib_resources():
-            logger.info("Calculating cross-validation scores")
-            self._calculate_cv_scores(X_scaled, y)
 
         if save_model:
             logger.info("Saving model and scaler")
@@ -251,7 +256,8 @@ class Model:
 
 
     @with_non_interactive_matplotlib
-    def predict(self) -> str:
+    def predict(self,
+                log_scale: bool = True) -> str:
         """
         Generate predictions using trained model.
 
@@ -309,6 +315,8 @@ class Model:
                         # Make predictions
                         sx = self.scaler.transform(df)
                         yp = self.model.predict(sx)
+                        if log_scale:
+                            yp = np.exp(yp)
                         res = yp.reshape(arr.shape)
 
                         with writing_lock:

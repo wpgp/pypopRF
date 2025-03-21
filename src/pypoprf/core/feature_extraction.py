@@ -160,6 +160,24 @@ class FeatureExtractor:
         return census, id_column, pop_column
 
 
+    def get_dummy(self) -> pd.DataFrame:
+        """
+        Get dummy features
+        
+        Returns:
+            pd.DataFrame: Dummy features
+        """
+        logger.info("Creating dummy features")
+        res = pd.DataFrame({'id':[1], 'pop':[1]})
+        for c in list(self.settings.covariate)[::-1]:
+            res[f'{c}_avg'] = [1]
+
+        res['dens'] = [1]
+
+        res.to_csv('tmp.csv')
+        self.features = res
+        return res
+
     def extract(self,
                 save: Optional[str] = None,
                 avg_only: bool = True) -> pd.DataFrame:

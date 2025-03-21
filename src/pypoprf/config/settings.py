@@ -26,6 +26,7 @@ class Settings:
         constrain (str): Path to raster for constraining population distribution
         covariate (dict): Dictionary of covariate names and paths
         census (dict): Census configuration including path and column names
+        log_scale (bool): Whether to train model on log(dens)
         output_dir (Path): Output directory path
         by_block (bool): Whether to process by blocks
         block_size (tuple): Size of processing blocks (width, height)
@@ -46,6 +47,7 @@ class Settings:
                  census_data: Optional[str] = None,
                  census_pop_column: Optional[str] = None,
                  census_id_column: Optional[str] = None,
+                 log_scale: bool = True,
                  output_dir: Optional[str] = None,
                  by_block: bool = True,
                  block_size: Tuple[int, int] = (512, 512),
@@ -66,6 +68,7 @@ class Settings:
             census_data: Path to census data file
             census_pop_column: Name of population column in census data
             census_id_column: Name of ID column in census data
+            log_scale (bool): Whether to train model on log(dens)
             output_dir: Directory for output files
             by_block: Whether to process by blocks
             block_size: Tuple of (width, height) for processing blocks
@@ -117,6 +120,9 @@ class Settings:
             'pop_column': census_pop_column,
             'id_column': census_id_column
         }
+
+        # Set log scale
+        self.log_scale = log_scale
 
         # Set output directory
         if output_dir:
@@ -330,6 +336,7 @@ class Settings:
             f"    Pop Column: {self.census['pop_column']}\n"
             f"    ID Column: {self.census['id_column']}\n"
             f"  Processing:\n"
+            f"    Log scale: {self.log_scale}\n"
             f"    By Block: {self.by_block}\n"
             f"    Block Size: {self.block_size}\n"
             f"    Max Workers: {self.max_workers}\n"
