@@ -113,6 +113,7 @@ class Model:
                 logger.debug(f"Selected {len(selected)} features")
 
             X = X[selected]
+            self.selected_features = selected
             self.scaler.fit(X)
             X_scaled = self.scaler.transform(X)
 
@@ -144,7 +145,7 @@ class Model:
     def _select_features(self,
                          X: np.ndarray,
                          y: np.ndarray,
-                         limit: float = 0.05,
+                         limit: float = 0.003,
                          plot: bool = True,
                          save: bool = True) -> Tuple[pd.DataFrame, np.ndarray]:
         """
@@ -161,7 +162,7 @@ class Model:
 
         result = permutation_importance(
             model, X, y,
-            n_repeats=10,
+            n_repeats=20,
             n_jobs=2,
             scoring='neg_root_mean_squared_error'
         )
@@ -170,7 +171,7 @@ class Model:
 
         importances = pd.DataFrame(
             result.importances[sorted_idx].T / ymean,
-            columns=names,
+            columns=names[sorted_idx],
         )
 
         selected = importances.columns.values[importances.mean(axis=0) > limit]
@@ -298,7 +299,7 @@ class Model:
                 # Setup locks
                 reading_lock = threading.Lock()
                 writing_lock = threading.Lock()
-                names = self.feature_names
+                names = self.selected_features #self.feature_names
                 outfile = Path(self.settings.output_dir) / 'prediction.tif'
                 logger.info(f"Output will be saved to: {outfile}")
 
