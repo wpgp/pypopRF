@@ -58,7 +58,7 @@ class Model:
               data: pd.DataFrame,
               model_path: Optional[str] = None,
               scaler_path: Optional[str] = None,
-              log_scale: bool = True,
+              log_scale: bool = False,
               save_model: bool = True) -> None:
         """
         Train Random Forest model for population prediction.
@@ -80,7 +80,7 @@ class Model:
         X = data.drop(columns=drop_cols).copy()
         y = data['dens'].values
         if log_scale:
-            y = np.log(y + 0.1)
+            y = np.log(np.maximum(y, 0.1))
         self.target_mean = y.mean()
         self.feature_names = X.columns.values
 
@@ -145,7 +145,7 @@ class Model:
     def _select_features(self,
                          X: np.ndarray,
                          y: np.ndarray,
-                         limit: float = 0.003,
+                         limit: float = 0.01,
                          plot: bool = True,
                          save: bool = True) -> Tuple[pd.DataFrame, np.ndarray]:
         """
@@ -168,13 +168,13 @@ class Model:
         )
 
         sorted_idx = result.importances_mean.argsort()
-
+        
         importances = pd.DataFrame(
             result.importances[sorted_idx].T / ymean,
             columns=names[sorted_idx],
         )
 
-        selected = importances.columns.values[importances.mean(axis=0) > limit]
+        selected = importances.columns.values[np.median(importances, axis=0) > limit]
 
         if plot:
             logger.debug("Creating feature importance plot")
@@ -186,7 +186,7 @@ class Model:
             logger.info(f"Feature importance table saved to: {save_path}")
 
         logger.info(f"Selected {len(selected)} features out of {len(names)} features")
-        logger.debug(f"Selected features: {selected.tolist()}")
+        logger.info(f"Selected features: {selected}")
 
         return importances, selected
 
@@ -258,7 +258,7 @@ class Model:
 
     @with_non_interactive_matplotlib
     def predict(self,
-                log_scale: bool = True) -> str:
+                log_scale: bool = False) -> str:
         """
         Generate predictions using trained model.
 
