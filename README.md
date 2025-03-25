@@ -82,10 +82,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 If you use pypopRF in your research, please cite:
 
 ```bibtex
-@software{pypoprf2024,
-  author = {WorldPop SDI},
+@software{pypoprf2025,
+  author = {Priyatikanto R., Nosatiuk B., Zhang W., McKeen T., Vataga E., Tejedor-Garavito N, Bondarenko M.},
   title = {pypopRF: Population Prediction and Dasymetric Mapping Tool},
-  year = {2024},
+  year = {2025},
   publisher = {GitHub},
   url = {https://github.com/wpgp/pypopRF}
 }
