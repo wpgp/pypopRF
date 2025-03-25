@@ -3,6 +3,8 @@
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://wpgp.github.io/pypopRF/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![DOI](https://zenodo.org/badge/886682636.svg)](https://doi.org/10.5281/zenodo.15085988)
+
 
 pypopRF is a Python package for population prediction and dasymetric mapping using machine learning techniques. It provides a comprehensive toolkit for processing geospatial data, training models, and generating high-resolution population distribution maps.
 
